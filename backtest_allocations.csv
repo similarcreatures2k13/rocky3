@@ -1,0 +1,37 @@
+Date,Event,NAV ($),Eligible (>MA200),INOD_MA200,DUOT_MA200,BABA_MA200,AI_MA200,INOD_MA60,DUOT_MA60,BABA_MA60,AI_MA60,INOD_Momentum,DUOT_Momentum,BABA_Momentum,AI_Momentum,Rank1 (50%),Rank2 (30%),Rank3 (20%),Cash Reserve ($),Deployed (%)
+2021-06-30,REBALANCE,1004.48,NONE (all cash),N/A,N/A,N/A,N/A,N/A,N/A,N/A,N/A,+nan%,+nan%,+nan%,+nan%,—,—,—,1004.48,0.0%
+2021-09-30,REBALANCE,1017.62,NONE (all cash),N/A,N/A,N/A,N/A,7.71,7.04,170.7,50.21,+nan%,+nan%,+nan%,+nan%,—,—,—,1017.62,0.0%
+2021-12-31,REBALANCE,1030.93,NONE (all cash),N/A,N/A,N/A,N/A,8.01,5.71,138.49,40.24,+nan%,+nan%,+nan%,+nan%,—,—,—,1030.93,0.0%
+2022-03-31,REBALANCE,1043.99,NONE (all cash),7.24,6.37,143.88,39.79,5.87,5.47,109.26,23.83,+nan%,+nan%,+nan%,+nan%,—,—,—,1043.99,0.0%
+2022-06-30,REBALANCE,1057.21,NONE (all cash),6.93,5.15,115.7,29.01,6.43,3.99,92.63,18.21,+nan%,+nan%,+nan%,+nan%,—,—,—,1057.21,0.0%
+2022-09-30,REBALANCE,1071.04,NONE (all cash),5.56,4.58,98.51,20.87,4.33,4.03,88.95,17.83,+nan%,+nan%,+nan%,+nan%,—,—,—,1071.04,0.0%
+2023-03-31,REBALANCE,1098.57,"INOD, BABA, AI",4.41,3.58,87.81,17.02,5.74,3.68,95.2,20.79,+189.5%,+nan%,+14.6%,+208.0%,AI,INOD,BABA,0.0,100.0%
+2023-04-04,TRAILING STOP — AI,1337.55,"Stop: AI closed @ $24.95  (HWM=$33.87, drawdown=26.3%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,408.24,—
+2023-04-26,TRAILING STOP — INOD,1092.35,"Stop: INOD closed @ $6.54  (HWM=$8.58, drawdown=23.8%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,661.88,—
+2023-05-02,TRAILING STOP — BABA,1013.04,"Stop: BABA closed @ $77.43  (HWM=$97.57, drawdown=20.6%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,837.73,—
+2023-06-30,REBALANCE,844.73,"INOD, DUOT, AI",5.83,3.77,83.95,19.9,9.33,4.68,82.74,28.13,+41.3%,+114.4%,+nan%,+31.8%,DUOT,INOD,AI,0.0,100.0%
+2023-08-07,TRAILING STOP — DUOT,1193.21,"Stop: DUOT closed @ $5.44  (HWM=$7.00, drawdown=22.3%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,386.81,—
+2023-08-09,TRAILING STOP — INOD,1005.98,"Stop: INOD closed @ $10.43  (HWM=$13.50, drawdown=22.7%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,620.26,—
+2023-08-09,TRAILING STOP — AI,925.13,"Stop: AI closed @ $32.87  (HWM=$44.37, drawdown=25.9%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,772.69,—
+2024-09-30,REBALANCE,819.06,"INOD, BABA",11.71,3.1,74.89,26.59,16.96,2.63,80.97,25.19,+8.5%,+nan%,+47.0%,+nan%,BABA,INOD,—,163.81,80.0%
+2024-11-12,TRAILING STOP — BABA,1547.08,"Stop: BABA closed @ $90.25  (HWM=$115.57, drawdown=21.9%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,519.04,—
+2024-11-15,TRAILING STOP — INOD,1596.29,"Stop: INOD closed @ $36.75  (HWM=$45.99, drawdown=20.1%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,1057.82,—
+2024-12-31,REBALANCE,1064.29,"INOD, DUOT, BABA, AI",19.03,3.38,81.95,27.41,32.58,4.58,91.62,31.57,+155.1%,+95.4%,-24.8%,+52.3%,INOD,DUOT,AI,0.0,100.0%
+2025-01-08,TRAILING STOP — DUOT,1334.62,"Stop: DUOT closed @ $5.93  (HWM=$7.84, drawdown=24.3%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,316.88,—
+2025-01-13,TRAILING STOP — INOD,1408.7,"Stop: INOD closed @ $33.43  (HWM=$44.32, drawdown=24.6%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,767.15,—
+2025-02-21,TRAILING STOP — AI,1123.76,"Stop: AI closed @ $28.50  (HWM=$36.93, drawdown=22.8%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,947.56,—
+2025-03-31,REBALANCE,952.58,"INOD, DUOT, BABA",29.52,4.33,93.86,28.3,43.94,6.26,113.39,28.38,-22.3%,-15.7%,+53.6%,+nan%,BABA,DUOT,INOD,0.0,100.0%
+2025-04-04,TRAILING STOP — INOD,975.51,"Stop: INOD closed @ $29.97  (HWM=$37.85, drawdown=20.8%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,159.05,—
+2025-04-07,TRAILING STOP — DUOT,996.84,"Stop: DUOT closed @ $4.50  (HWM=$5.64, drawdown=20.2%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,387.09,—
+2025-04-07,TRAILING STOP — BABA,1150.57,"Stop: BABA closed @ $104.22  (HWM=$130.49, drawdown=20.1%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,768.83,—
+2025-06-30,REBALANCE,777.78,"INOD, DUOT, BABA",36.56,5.63,106.27,27.17,39.53,6.93,116.39,22.9,+37.0%,+34.7%,-12.9%,+nan%,INOD,DUOT,BABA,0.0,100.0%
+2025-08-06,TRAILING STOP — INOD,1055.98,"Stop: INOD closed @ $43.58  (HWM=$54.90, drawdown=20.6%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,330.88,—
+2025-08-07,TRAILING STOP — DUOT,918.82,"Stop: DUOT closed @ $6.47  (HWM=$8.21, drawdown=21.3%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,541.93,—
+2025-09-30,REBALANCE,791.17,"INOD, DUOT, BABA",44.37,6.65,118.06,24.92,50.6,7.07,132.44,20.58,+62.6%,+1.4%,+56.8%,+nan%,INOD,BABA,DUOT,0.0,100.0%
+2025-10-22,TRAILING STOP — INOD,1141.98,"Stop: INOD closed @ $72.07  (HWM=$93.19, drawdown=22.7%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,369.92,—
+2025-11-17,TRAILING STOP — DUOT,930.28,"Stop: DUOT closed @ $8.13  (HWM=$10.66, drawdown=23.7%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,546.06,—
+2025-12-15,TRAILING STOP — BABA,946.8,"Stop: BABA closed @ $150.09  (HWM=$189.34, drawdown=20.7%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,747.49,—
+2025-12-31,REBALANCE,749.16,"DUOT, BABA",51.34,7.71,136.92,20.0,63.88,9.49,161.26,15.77,+nan%,+53.3%,-19.8%,+nan%,DUOT,BABA,—,149.83,80.0%
+2026-02-04,TRAILING STOP — DUOT,977.22,"Stop: DUOT closed @ $8.75  (HWM=$11.25, drawdown=22.2%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,441.87,—
+2026-03-03,TRAILING STOP — BABA,859.28,"Stop: BABA closed @ $135.59  (HWM=$177.18, drawdown=23.5%)",—,—,—,—,—,—,—,—,—,—,—,—,—,—,—,651.39,—
+2026-03-31,REBALANCE,654.04,NONE (all cash),54.82,8.4,146.17,16.38,49.83,8.87,150.23,10.68,+nan%,+nan%,+nan%,+nan%,—,—,—,654.04,0.0%

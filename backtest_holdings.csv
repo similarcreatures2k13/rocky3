@@ -1,5 +1,5 @@
 Ticker,Layer,Description,Start ($),End ($),Hold. Return,Contrib.,Port. Wt,Sharpe,Max DD
-INOD,L1 Data Engineering,LLM Training Data Prep (Innodata),250.00,980.91,+292.4%,+73.1%,40.3%,0.73,-79.1%
-DUOT,L1 Edge AI Infra,Modular Edge AI Data Centers (Duos Technologies),250.00,636.87,+154.7%,+38.7%,26.1%,0.59,-84.6%
-BABA,L2 AI Cloud,Discounted AI Cloud Infrastructure (Alibaba),250.00,358.48,+43.4%,+10.8%,14.7%,0.37,-71.5%
-AI,L3 Enterprise AI,Enterprise AI Application Layer (C3.ai),250.00,460.19,+84.1%,+21.0%,18.9%,0.51,-70.8%
+INOD,L1 Data Engineering,LLM Training Data Prep (Innodata),0.00,0.00,+nan%,+0.0%,0.0%,nan,-100.0%
+DUOT,L1 Edge AI Infra,Modular Edge AI Data Centers (Duos Tech),0.00,0.00,+nan%,+0.0%,0.0%,nan,-100.0%
+BABA,L2 AI Cloud,Discounted AI Cloud Infrastructure (Alibaba),0.00,0.00,+nan%,+0.0%,0.0%,nan,-100.0%
+AI,L3 Enterprise AI,Enterprise AI Application Layer (C3.ai),0.00,0.00,+nan%,+0.0%,0.0%,nan,-100.0%
