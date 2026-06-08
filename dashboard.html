@@ -8,36 +8,25 @@
   <meta name="apple-mobile-web-app-capable" content="yes" />
   <title>Rocky3 · Micro-Cap Audit Console</title>
 
-  <!-- ── CDN Libraries ─────────────────────────────────────────────── -->
   <script src="https://cdn.tailwindcss.com"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
-
-  <!-- ── Tailwind Config ───────────────────────────────────────────── -->
   <script>
     tailwind.config = {
-      theme: {
-        extend: {
-          fontFamily: { mono: ["'JetBrains Mono'", 'Courier New', 'monospace'] },
-        }
-      }
+      theme: { extend: { fontFamily: { mono: ["'JetBrains Mono'", 'Courier New', 'monospace'] } } }
     }
   </script>
 
   <style>
     @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap');
-
     *, *::before, *::after { box-sizing: border-box; }
 
-    /* ── Base ─────────────────────────────────────── */
     :root {
       --g:     #00ff41;
-      --g2:    #00cc33;
       --amber: #ffb700;
       --red:   #ff3333;
       --blue:  #00b4ff;
-      --card:  #080808;
-      --bg:    #040404;
-      --dim:   #1e3a1e;
+      --card:  #070707;
+      --bg:    #030303;
     }
 
     html { scroll-behavior: smooth; }
@@ -50,545 +39,559 @@
       overflow-x: hidden;
     }
 
-    /* Subtle CRT scanline overlay */
+    /* CRT scanline */
     body::after {
       content: '';
       position: fixed; inset: 0;
       background: repeating-linear-gradient(
         0deg, transparent, transparent 2px,
-        rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px
+        rgba(0,0,0,0.045) 2px, rgba(0,0,0,0.045) 4px
       );
-      pointer-events: none;
-      z-index: 9000;
+      pointer-events: none; z-index: 9000;
     }
 
-    /* ── Typography ───────────────────────────────── */
-    .label {
-      font-size: 0.6rem; font-weight: 700;
-      letter-spacing: 0.2em; text-transform: uppercase;
-      color: rgba(0,255,65,0.4);
+    /* ── Labels ─────────────────────────────────── */
+    .lbl {
+      font-size: 0.58rem; font-weight: 700;
+      letter-spacing: 0.22em; text-transform: uppercase;
+      color: rgba(0,255,65,0.38);
     }
-    .val { font-size: 0.82rem; font-weight: 700; color: var(--g); }
-    .glow { text-shadow: 0 0 8px currentColor; }
-    .glow-lg { text-shadow: 0 0 14px currentColor, 0 0 28px rgba(0,255,65,0.3); }
 
-    /* ── Cards ────────────────────────────────────── */
+    /* ── Cards ──────────────────────────────────── */
     .card {
       background: var(--card);
-      border: 1px solid rgba(0,255,65,0.12);
-      border-radius: 3px;
-      padding: 16px;
+      border: 1px solid rgba(0,255,65,0.10);
+      border-radius: 3px; padding: 14px;
       transition: border-color 0.2s;
     }
-    .card:hover { border-color: rgba(0,255,65,0.28); }
-    .card-warn  { border-color: rgba(255,183,0,0.3) !important; }
-    .card-danger{ border-color: rgba(255,51,51,0.3) !important; }
+    .card:hover { border-color: rgba(0,255,65,0.22); }
+    .card-a { border-color: rgba(0,255,65,0.14) !important; }
+    .card-b { border-color: rgba(0,180,255,0.14) !important; }
+    .card-warn   { border-color: rgba(255,183,0,0.35) !important; }
+    .card-danger { border-color: rgba(255,51,51,0.35) !important; }
 
-    /* ── Phase Banner ─────────────────────────────── */
+    /* ── Phase banner ───────────────────────────── */
     .phase-banner {
       background: repeating-linear-gradient(
-        60deg, rgba(255,183,0,0.04), rgba(255,183,0,0.04) 12px,
+        60deg, rgba(255,183,0,0.03), rgba(255,183,0,0.03) 12px,
         transparent 12px, transparent 24px
       );
-      border: 1px solid rgba(255,183,0,0.45);
-      border-radius: 3px;
-      padding: 12px 16px;
+      border: 1px solid rgba(255,183,0,0.42); border-radius: 3px; padding: 10px 14px;
     }
 
-    /* ── Range Sliders ────────────────────────────── */
+    /* ── Ticker editable input ──────────────────── */
+    .ticker-name-input {
+      background: transparent;
+      border: none; border-bottom: 1px solid rgba(0,255,65,0.25);
+      color: var(--g); font-family: inherit; font-size: 0.92rem; font-weight: 700;
+      width: 7ch; min-width: 4ch; max-width: 11ch;
+      outline: none; padding: 0 2px 2px; letter-spacing: 0.04em;
+      text-transform: uppercase; transition: border-color 0.2s;
+    }
+    .ticker-name-input.asset-b { color: var(--blue); border-bottom-color: rgba(0,180,255,0.25); }
+    .ticker-name-input:focus   { border-bottom-color: rgba(0,255,65,0.7); }
+    .ticker-name-input.asset-b:focus { border-bottom-color: rgba(0,180,255,0.7); }
+
+    /* ── Range sliders ──────────────────────────── */
     input[type="range"] {
       -webkit-appearance: none; appearance: none;
       width: 100%; height: 3px;
-      background: #1a2a1a;
-      border-radius: 2px; outline: none; cursor: pointer;
+      background: #141414; border-radius: 2px;
+      outline: none; cursor: pointer; touch-action: none;
     }
-    input[type="range"]::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      width: 18px; height: 18px;
+    input[type="range"].sl-a::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 20px; height: 20px;
       background: var(--g); border-radius: 50%;
-      box-shadow: 0 0 10px var(--g);
-      cursor: pointer; transition: box-shadow 0.15s;
-    }
-    input[type="range"]::-webkit-slider-thumb:active {
-      box-shadow: 0 0 18px var(--g), 0 0 32px rgba(0,255,65,0.4);
-    }
-    input[type="range"]::-moz-range-thumb {
-      width: 18px; height: 18px;
-      background: var(--g); border: none; border-radius: 50%;
       box-shadow: 0 0 10px var(--g); cursor: pointer;
     }
-    input[type="range"].sl-amber::-webkit-slider-thumb {
-      background: var(--amber); box-shadow: 0 0 10px var(--amber);
+    input[type="range"].sl-a::-moz-range-thumb {
+      width: 20px; height: 20px; background: var(--g);
+      border: none; border-radius: 50%; box-shadow: 0 0 10px var(--g);
     }
-    input[type="range"].sl-amber::-moz-range-thumb {
-      background: var(--amber); box-shadow: 0 0 10px var(--amber);
+    input[type="range"].sl-b::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 20px; height: 20px;
+      background: var(--blue); border-radius: 50%;
+      box-shadow: 0 0 10px var(--blue); cursor: pointer;
     }
-    input[type="range"].sl-danger::-webkit-slider-thumb {
-      background: var(--red); box-shadow: 0 0 10px var(--red);
+    input[type="range"].sl-b::-moz-range-thumb {
+      width: 20px; height: 20px; background: var(--blue);
+      border: none; border-radius: 50%; box-shadow: 0 0 10px var(--blue);
     }
-    input[type="range"].sl-danger::-moz-range-thumb {
-      background: var(--red); box-shadow: 0 0 10px var(--red);
+    input[type="range"].sl-warn::-webkit-slider-thumb {
+      -webkit-appearance: none; width: 20px; height: 20px;
+      background: var(--amber); border-radius: 50%;
+      box-shadow: 0 0 10px var(--amber); cursor: pointer;
+    }
+    input[type="range"].sl-warn::-moz-range-thumb {
+      width: 20px; height: 20px; background: var(--amber);
+      border: none; border-radius: 50%; box-shadow: 0 0 10px var(--amber);
     }
 
-    /* ── Text Inputs ──────────────────────────────── */
+    /* ── Text / password inputs ─────────────────── */
     .t-input {
       background: #050505; width: 100%;
-      border: 1px solid rgba(0,255,65,0.25); border-radius: 3px;
-      color: #a8d8a8; font-family: inherit; font-size: 0.82rem;
-      padding: 10px 12px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+      border: 1px solid rgba(0,255,65,0.22); border-radius: 3px;
+      color: #a8d8a8; font-family: inherit; font-size: 0.8rem;
+      padding: 9px 11px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
     }
     .t-input:focus {
-      border-color: rgba(0,255,65,0.65);
-      box-shadow: 0 0 10px rgba(0,255,65,0.15);
+      border-color: rgba(0,255,65,0.6);
+      box-shadow: 0 0 8px rgba(0,255,65,0.12);
     }
-    .t-input::placeholder { color: #2a4a2a; }
+    .t-input::placeholder { color: #1e3a1e; }
 
-    /* ── Buttons ──────────────────────────────────── */
+    /* ── Buttons ────────────────────────────────── */
     .btn {
-      font-family: inherit; font-size: 0.72rem; font-weight: 700;
+      font-family: inherit; font-size: 0.7rem; font-weight: 700;
       letter-spacing: 0.1em; text-transform: uppercase;
-      padding: 12px 18px; border-radius: 3px;
-      cursor: pointer; transition: all 0.15s;
-      min-height: 44px; min-width: 44px;
-      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      padding: 10px 16px; border-radius: 3px; cursor: pointer;
+      transition: all 0.15s; min-height: 42px;
+      display: inline-flex; align-items: center; justify-content: center; gap: 5px;
     }
-    .btn-g {
-      border: 1px solid rgba(0,255,65,0.4); color: var(--g);
-      background: rgba(0,255,65,0.04);
-    }
-    .btn-g:hover, .btn-g:active {
-      background: rgba(0,255,65,0.10); box-shadow: 0 0 14px rgba(0,255,65,0.25);
-    }
-    .btn-amber {
-      border: 1px solid rgba(255,183,0,0.45); color: var(--amber);
-      background: rgba(255,183,0,0.04);
-    }
-    .btn-amber:hover, .btn-amber:active {
-      background: rgba(255,183,0,0.10); box-shadow: 0 0 14px rgba(255,183,0,0.2);
-    }
-    .btn-red {
-      border: 1px solid rgba(255,51,51,0.4); color: var(--red);
-      background: rgba(255,51,51,0.04);
-    }
-    .btn-red:hover, .btn-red:active {
-      background: rgba(255,51,51,0.10); box-shadow: 0 0 14px rgba(255,51,51,0.2);
-    }
-    .btn-lg { padding: 16px 24px; font-size: 0.82rem; min-height: 52px; }
+    .btn:disabled { opacity: 0.45; cursor: not-allowed; }
+    .btn-g     { border: 1px solid rgba(0,255,65,0.38);  color: var(--g);    background: rgba(0,255,65,0.04);  }
+    .btn-g:not(:disabled):hover { background: rgba(0,255,65,0.10);  box-shadow: 0 0 12px rgba(0,255,65,0.22);  }
+    .btn-b     { border: 1px solid rgba(0,180,255,0.38); color: var(--blue);  background: rgba(0,180,255,0.04); }
+    .btn-b:not(:disabled):hover { background: rgba(0,180,255,0.10); box-shadow: 0 0 12px rgba(0,180,255,0.22); }
+    .btn-amber { border: 1px solid rgba(255,183,0,0.42);  color: var(--amber); background: rgba(255,183,0,0.04); }
+    .btn-amber:not(:disabled):hover { background: rgba(255,183,0,0.10); box-shadow: 0 0 12px rgba(255,183,0,0.20); }
+    .btn-red   { border: 1px solid rgba(255,51,51,0.38);  color: var(--red);   background: rgba(255,51,51,0.04);  }
+    .btn-red:not(:disabled):hover { background: rgba(255,51,51,0.10); }
+    .btn-sm { padding: 6px 11px; font-size: 0.64rem; min-height: 32px; }
+    .btn-lg { padding: 14px 22px; font-size: 0.8rem;  min-height: 50px; width: 100%; }
 
-    /* ── Toggle (dilution) ────────────────────────── */
+    /* ── Dilution toggle ─────────────────────────── */
     .toggle {
-      font-family: inherit; font-size: 0.68rem; font-weight: 700;
+      font-family: inherit; font-size: 0.65rem; font-weight: 700;
       letter-spacing: 0.08em; text-transform: uppercase;
-      padding: 8px 14px; border-radius: 3px;
-      cursor: pointer; transition: all 0.15s;
-      min-height: 38px; min-width: 80px;
-      background: transparent; color: #3a5a3a;
-      border: 1px solid rgba(58,90,58,0.5);
+      padding: 7px 12px; border-radius: 3px; cursor: pointer;
+      min-height: 36px; background: transparent;
+      color: #2a4a2a; border: 1px solid rgba(42,74,42,0.45);
+      transition: all 0.15s;
     }
     .toggle.on {
       color: var(--red); border-color: rgba(255,51,51,0.55);
-      background: rgba(255,51,51,0.07); box-shadow: 0 0 10px rgba(255,51,51,0.15);
+      background: rgba(255,51,51,0.07); box-shadow: 0 0 8px rgba(255,51,51,0.14);
     }
 
-    /* ── Pre / Audit ──────────────────────────────── */
-    pre {
-      font-family: inherit; font-size: 0.7rem; line-height: 1.65;
-      color: #6aaa6a; white-space: pre; overflow-x: auto;
-      word-break: normal;
+    /* ── Glow helpers ────────────────────────────── */
+    .glow-g    { text-shadow: 0 0 8px var(--g);    }
+    .glow-b    { text-shadow: 0 0 8px var(--blue);  }
+    .glow-a    { text-shadow: 0 0 8px var(--amber); }
+
+    /* ── Score badges ────────────────────────────── */
+    .score-box {
+      background: rgba(0,0,0,0.4); border-radius: 3px;
+      padding: 8px 12px; border-left: 2px solid;
     }
 
-    /* ── AI Terminal ──────────────────────────────── */
+    /* ── Audit pre ───────────────────────────────── */
+    #audit-text {
+      font-size: 0.68rem; line-height: 1.6; color: #5a9a5a;
+      white-space: pre; overflow-x: auto; word-break: normal;
+    }
+
+    /* ── AI response ─────────────────────────────── */
     #ai-response {
-      font-size: 0.78rem; line-height: 1.7;
-      color: #90d890; white-space: pre-wrap; word-break: break-word;
+      font-size: 0.78rem; line-height: 1.72;
+      color: #8dd88d; white-space: pre-wrap; word-break: break-word;
     }
 
-    /* ── Scrollbar ────────────────────────────────── */
+    /* ── Scrollbar ───────────────────────────────── */
     ::-webkit-scrollbar { width: 4px; height: 4px; }
-    ::-webkit-scrollbar-track { background: #050505; }
+    ::-webkit-scrollbar-track { background: #030303; }
     ::-webkit-scrollbar-thumb { background: #1a3a1a; border-radius: 2px; }
 
-    /* ── Animations ───────────────────────────────── */
-    @keyframes blink { 50% { opacity: 0; } }
+    /* ── Animations ──────────────────────────────── */
+    @keyframes blink   { 50% { opacity: 0; } }
     .blink { animation: blink 1s step-end infinite; }
 
-    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
-    .fade-in { animation: fadeIn 0.3s ease forwards; }
+    @keyframes fadeUp  { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+    .fade-up { animation: fadeUp 0.28s ease forwards; }
 
-    @keyframes flash { 0%,100% { background: rgba(0,255,65,0.04); } 50% { background: rgba(0,255,65,0.18); } }
-    .flash { animation: flash 0.5s ease; }
+    @keyframes flash { 0%,100%{background:rgba(0,255,65,0.04)} 50%{background:rgba(0,255,65,0.16)} }
+    .flash { animation: flash 0.45s ease; }
 
-    /* ── Concentration colour helper ─────────────── */
-    .conc-safe   { color: var(--g); }
-    .conc-caution{ color: var(--amber); }
-    .conc-danger { color: var(--red); }
+    /* ── Conc colour states ──────────────────────── */
+    .c-safe   { color: var(--g);    }
+    .c-caution{ color: var(--amber);}
+    .c-danger { color: var(--red);  }
 
-    /* ── Responsive grid ─────────────────────────── */
-    @media (min-width: 640px) {
-      .shock-grid { grid-template-columns: 1fr 1fr; }
-    }
+    /* ── Responsive 2-col shock grid ────────────── */
+    @media (min-width: 640px) { .two-col { grid-template-columns: 1fr 1fr !important; } }
   </style>
 </head>
 
 <body class="font-mono">
 
-<!-- ═══════════════════════════════════════════════════ HEADER BAR -->
+<!-- ═══════════════════════════════════ HEADER -->
 <header class="sticky top-0 z-50 flex items-center justify-between px-4 py-3"
-        style="background:#040404; border-bottom:1px solid rgba(0,255,65,0.15)">
-  <div>
-    <span class="text-xs font-bold tracking-widest" style="color:var(--g)">ROCKY3</span>
-    <span class="text-xs ml-2" style="color:#3a6a3a">· MICRO-CAP AUDIT CONSOLE</span>
-    <span class="blink ml-1 text-xs" style="color:var(--g)">▮</span>
+        style="background:#030303;border-bottom:1px solid rgba(0,255,65,0.13)">
+  <div class="flex items-center gap-2 flex-wrap">
+    <span class="text-xs font-bold tracking-widest glow-g" style="color:var(--g)">ROCKY3</span>
+    <span class="text-xs" style="color:#2a4a2a">· AUTONOMOUS MICRO-CAP AUDIT SUITE</span>
+    <span class="blink text-xs" style="color:var(--g)">▮</span>
   </div>
-  <button id="gear-btn" class="btn btn-g" style="padding:8px 12px;font-size:0.9rem;min-height:38px"
-          title="Configuration" aria-label="Open settings">⚙</button>
+  <button id="gear-btn" class="btn btn-g btn-sm" title="Configuration">⚙ CONFIG</button>
 </header>
 
-<!-- ═══════════════════════════════════════════ CONFIG PANE (hidden) -->
-<div id="config-pane" class="hidden fade-in" style="background:#060a06; border-bottom:1px solid rgba(0,255,65,0.18)">
-  <div class="px-4 py-4 max-w-xl mx-auto">
-    <div class="label mb-3">⚙ System Configuration</div>
-    <div class="grid gap-3">
-      <div>
-        <div class="label mb-1">OpenRouter API Key <span style="color:var(--red)">[REQUIRED]</span></div>
-        <!-- type="password" — key never visible on screen -->
-        <input type="password" id="cfg-apikey" class="t-input"
-               placeholder="Enter your OpenRouter API key…"
-               autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
-        <div class="label mt-1" style="color:rgba(255,51,51,0.5)">Stored in localStorage only — never sent to any server except OpenRouter at dispatch.</div>
-      </div>
-      <div>
-        <div class="label mb-1">AI Model <span style="color:#3a6a3a">(default: google/gemini-2.5-flash)</span></div>
-        <input type="text" id="cfg-model" class="t-input"
-               placeholder="google/gemini-2.5-flash"
-               autocomplete="off" autocorrect="off" spellcheck="false" />
-      </div>
-      <div class="flex items-center gap-3 flex-wrap">
-        <button id="cfg-save-btn" class="btn btn-g">💾 SAVE CONFIG</button>
-        <button id="cfg-clear-btn" class="btn btn-red" style="font-size:0.65rem">CLEAR KEY</button>
-        <span id="cfg-status" class="text-xs" style="color:var(--g)"></span>
-      </div>
+<!-- ═══════════════════════════════════ CONFIG PANE -->
+<div id="config-pane" class="hidden fade-up"
+     style="background:#060a06;border-bottom:1px solid rgba(0,255,65,0.16)">
+  <div class="px-4 py-4 max-w-lg mx-auto grid gap-3">
+    <div class="lbl">⚙ System Configuration — keys stored in localStorage only</div>
+
+    <div>
+      <div class="lbl mb-1">OpenRouter API Key <span style="color:var(--red)">[stored client-side only · never transmitted to any server except OpenRouter]</span></div>
+      <input type="password" id="cfg-key" class="t-input"
+             placeholder="Enter your OpenRouter API key…"
+             autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+    </div>
+
+    <div>
+      <div class="lbl mb-1">Model <span style="color:#2a4a2a">(default: google/gemini-2.5-flash)</span></div>
+      <input type="text" id="cfg-model" class="t-input" placeholder="google/gemini-2.5-flash"
+             autocomplete="off" spellcheck="false" />
+    </div>
+
+    <div class="flex gap-2 flex-wrap items-center">
+      <button id="cfg-save"  class="btn btn-g  btn-sm">💾 SAVE</button>
+      <button id="cfg-clear" class="btn btn-red btn-sm">CLEAR KEY</button>
+      <span id="cfg-status" class="text-xs" style="color:var(--g)"></span>
     </div>
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════ PORTFOLIO BANNER -->
+<!-- ═══════════════════════════════════ PORTFOLIO BANNER -->
 <section class="px-4 pt-4">
-  <div class="label mb-2">Portfolio Status</div>
-  <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(150px,1fr))">
+  <div class="lbl mb-2">Portfolio Status</div>
+  <div class="grid gap-2" style="grid-template-columns:repeat(auto-fill,minmax(140px,1fr))">
     <div class="card">
-      <div class="label">Net Asset Value</div>
-      <div class="text-xl font-bold glow mt-1" style="color:var(--g)">$<span id="nav-val">1,000.00</span></div>
+      <div class="lbl">Net Asset Value</div>
+      <div class="text-lg font-bold glow-g mt-1" style="color:var(--g)">$1,000.00</div>
     </div>
     <div class="card">
-      <div class="label">Available Cash</div>
-      <div class="text-xl font-bold mt-1" style="color:var(--amber)">$<span id="cash-val">200.00</span></div>
+      <div class="lbl">Cash Buffer</div>
+      <div class="text-lg font-bold mt-1" style="color:var(--amber)">$200.00</div>
     </div>
     <div class="card">
-      <div class="label">Deployed Capital</div>
-      <div class="text-xl font-bold mt-1" style="color:#60a860">$<span id="deployed-val">800.00</span></div>
+      <div class="lbl">Deployed</div>
+      <div class="text-lg font-bold mt-1" style="color:#60a860">$800.00</div>
     </div>
     <div class="card">
-      <div class="label">Options Floor</div>
-      <div class="text-xl font-bold mt-1" style="color:#3a6a5a">$2,500.00</div>
+      <div class="lbl">Options Floor</div>
+      <div class="text-lg font-bold mt-1" style="color:#2a5a4a">$2,500.00</div>
     </div>
   </div>
-
   <div class="phase-banner mt-3">
     <div class="text-xs font-bold" style="color:var(--amber)">
       ⚠ PHASE 1: OPTIONS TRADING HARD-LOCKED (UNDER $2.5K FLOOR)
     </div>
-    <div class="text-xs mt-1" style="color:rgba(255,183,0,0.55)">
-      Pure equity execution only · Vertical call debit spreads disabled · Min floor delta: <span id="floor-delta">$1,500.00</span>
+    <div class="text-xs mt-1" style="color:rgba(255,183,0,0.5)">
+      Equity-only execution active · Floor deficit: <strong>$1,500.00</strong>
     </div>
   </div>
 </section>
 
-<!-- ═══════════════════════════════════════ SHOCK MATRIX -->
+<!-- ═══════════════════════════════════ SHOCK MATRIX -->
 <section class="px-4 mt-5">
-  <div class="label mb-3">⚡ Shock Matrix Control</div>
-  <div class="grid gap-4 shock-grid">
+  <div class="lbl mb-3">⚡ Shock Matrix Control — edit tickers · move sliders · toggle dilution</div>
+  <div class="grid gap-4 two-col" style="grid-template-columns:1fr">
 
-    <!-- ── INOD ─────────────────────────────────── -->
-    <div class="card" id="card-inod">
-      <div class="flex items-center justify-between mb-3">
-        <div>
-          <span class="text-sm font-bold glow" style="color:var(--g)">INOD</span>
-          <span class="text-xs ml-2" style="color:#3a6a3a">Innodata Inc · LLM Data Prep</span>
+    <!-- ── ASSET A ─────────────────────────────── -->
+    <div class="card card-a" id="card-a">
+      <!-- Ticker header + AI populate -->
+      <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
+        <div class="flex items-center gap-2 flex-wrap">
+          <input type="text" class="ticker-name-input"
+                 id="ticker-a" value="INOD" maxlength="10"
+                 autocomplete="off" spellcheck="false"
+                 title="Edit ticker symbol" />
+          <span class="text-xs" id="name-a" style="color:#2a5a2a">Innodata Inc</span>
         </div>
-        <button class="toggle" id="dil-inod" onclick="toggleDilution('inod',this)">⚠ DILUTION</button>
+        <div class="flex items-center gap-2">
+          <button class="toggle" id="dil-a" onclick="toggleDilution('assetA')">⊘ DILUTION</button>
+          <button class="btn btn-g btn-sm" id="pop-a" onclick="aiPopulate('assetA')">⚡ AI POP</button>
+        </div>
       </div>
 
       <div class="grid gap-3">
-        <!-- Share Price -->
+        <!-- Price -->
         <div>
           <div class="flex justify-between items-center mb-1">
-            <span class="label">Share Price</span>
-            <span class="val" id="inod-price-val">$40.00</span>
+            <span class="lbl">Share Price</span>
+            <span class="text-xs font-bold" id="v-a-price" style="color:var(--g)">$40.00</span>
           </div>
-          <input type="range" id="inod-price" min="1" max="120" step="0.5" value="40"
-                 oninput="handleSlider('inod','price',this)">
+          <input type="range" class="sl-a" data-asset="assetA" data-field="price"
+                 min="0.10" max="500" step="0.10" value="40" />
         </div>
-
-        <!-- Client Concentration -->
+        <!-- Concentration -->
         <div>
           <div class="flex justify-between items-center mb-1">
-            <span class="label">Client Concentration</span>
-            <span class="val" id="inod-conc-val">32%</span>
+            <span class="lbl">Client Concentration</span>
+            <span class="text-xs font-bold" id="v-a-concentration">32%</span>
           </div>
-          <input type="range" id="inod-conc" class="sl-amber" min="0" max="100" step="1" value="32"
-                 oninput="handleSlider('inod','concentration',this)">
-          <div class="label mt-1" id="inod-conc-warn"></div>
+          <input type="range" class="sl-warn" data-asset="assetA" data-field="concentration"
+                 min="0" max="100" step="1" value="32" />
+          <div class="lbl mt-1" id="warn-a-conc" style="color:var(--amber)">⚠ SHOCK PENALTY ACTIVE</div>
         </div>
-
-        <!-- Forward Growth -->
+        <!-- Growth -->
         <div>
           <div class="flex justify-between items-center mb-1">
-            <span class="label">Fwd Revenue Growth</span>
-            <span class="val" id="inod-growth-val">40%</span>
+            <span class="lbl">Fwd Revenue Growth</span>
+            <span class="text-xs font-bold" id="v-a-growth" style="color:var(--g)">40%</span>
           </div>
-          <input type="range" id="inod-growth" min="0" max="300" step="1" value="40"
-                 oninput="handleSlider('inod','growthPct',this)">
+          <input type="range" class="sl-a" data-asset="assetA" data-field="growth"
+                 min="0" max="500" step="1" value="40" />
         </div>
-
-        <!-- Gross Margin -->
+        <!-- Margin -->
         <div>
           <div class="flex justify-between items-center mb-1">
-            <span class="label">Gross Margin %</span>
-            <span class="val" id="inod-margin-val">22%</span>
+            <span class="lbl">Gross Margin</span>
+            <span class="text-xs font-bold" id="v-a-margin" style="color:var(--g)">22%</span>
           </div>
-          <input type="range" id="inod-margin" min="0" max="90" step="1" value="22"
-                 oninput="handleSlider('inod','marginPct',this)">
+          <input type="range" class="sl-a" data-asset="assetA" data-field="margin"
+                 min="0" max="90" step="1" value="22" />
         </div>
-
         <!-- EV -->
         <div>
           <div class="flex justify-between items-center mb-1">
-            <span class="label">Enterprise Value ($M)</span>
-            <span class="val" id="inod-ev-val">$600M</span>
+            <span class="lbl">Enterprise Value ($M)</span>
+            <span class="text-xs font-bold" id="v-a-ev" style="color:var(--g)">$600M</span>
           </div>
-          <input type="range" id="inod-ev" min="10" max="2000" step="10" value="600"
-                 oninput="handleSlider('inod','ev',this)">
+          <input type="range" class="sl-a" data-asset="assetA" data-field="ev"
+                 min="1" max="10000" step="5" value="600" />
         </div>
-
         <!-- Cash Ratio -->
         <div>
           <div class="flex justify-between items-center mb-1">
-            <span class="label">Cash Ratio</span>
-            <span class="val" id="inod-cash-val">0.45</span>
+            <span class="lbl">Cash Ratio</span>
+            <span class="text-xs font-bold" id="v-a-cash" style="color:var(--g)">0.45</span>
           </div>
-          <input type="range" id="inod-cashr" min="0.05" max="5" step="0.05" value="0.45"
-                 oninput="handleSlider('inod','cashRatio',this)">
+          <input type="range" class="sl-a" data-asset="assetA" data-field="cash"
+                 min="0.01" max="10" step="0.01" value="0.45" />
         </div>
       </div>
 
-      <div class="mt-3 pt-3" style="border-top:1px solid rgba(0,255,65,0.08)">
-        <div class="flex justify-between">
-          <span class="label">Raw Convexity</span>
-          <span class="text-xs font-bold" id="inod-raw" style="color:#60a060">—</span>
+      <!-- Score block -->
+      <div class="grid grid-cols-2 gap-2 mt-3">
+        <div class="score-box" style="border-color:rgba(0,255,65,0.3)">
+          <div class="lbl">Raw Convexity</div>
+          <div class="text-sm font-bold mt-1" id="raw-a" style="color:#4a9a4a">—</div>
         </div>
-        <div class="flex justify-between mt-1">
-          <span class="label">Survival Score</span>
-          <span class="text-xs font-bold" id="inod-score" style="color:var(--g)">—</span>
+        <div class="score-box" style="border-color:rgba(0,255,65,0.6)">
+          <div class="lbl">Survival Score</div>
+          <div class="text-sm font-bold glow-g mt-1" id="sur-a" style="color:var(--g)">—</div>
         </div>
       </div>
     </div>
 
-    <!-- ── DUOT ─────────────────────────────────── -->
-    <div class="card" id="card-duot">
-      <div class="flex items-center justify-between mb-3">
-        <div>
-          <span class="text-sm font-bold glow" style="color:var(--blue)">DUOT</span>
-          <span class="text-xs ml-2" style="color:#1a4a6a">Duos Technologies · Edge AI Infra</span>
+    <!-- ── ASSET B ─────────────────────────────── -->
+    <div class="card card-b" id="card-b">
+      <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
+        <div class="flex items-center gap-2 flex-wrap">
+          <input type="text" class="ticker-name-input asset-b"
+                 id="ticker-b" value="DUOT" maxlength="10"
+                 autocomplete="off" spellcheck="false"
+                 title="Edit ticker symbol" />
+          <span class="text-xs" id="name-b" style="color:#1a3a5a">Duos Technologies</span>
         </div>
-        <button class="toggle on" id="dil-duot" onclick="toggleDilution('duot',this)">⚠ DILUTION</button>
+        <div class="flex items-center gap-2">
+          <button class="toggle on" id="dil-b" onclick="toggleDilution('assetB')">⚠ DILUTION</button>
+          <button class="btn btn-b btn-sm" id="pop-b" onclick="aiPopulate('assetB')">⚡ AI POP</button>
+        </div>
       </div>
 
       <div class="grid gap-3">
         <div>
           <div class="flex justify-between items-center mb-1">
-            <span class="label">Share Price</span>
-            <span class="val" id="duot-price-val" style="color:var(--blue)">$9.80</span>
+            <span class="lbl">Share Price</span>
+            <span class="text-xs font-bold" id="v-b-price" style="color:var(--blue)">$9.80</span>
           </div>
-          <input type="range" id="duot-price" min="0.5" max="50" step="0.1" value="9.8"
-                 oninput="handleSlider('duot','price',this)" style="--g:var(--blue)">
-          <style>#duot-price::-webkit-slider-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}
-                 #duot-price::-moz-range-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}</style>
+          <input type="range" class="sl-b" data-asset="assetB" data-field="price"
+                 min="0.10" max="500" step="0.10" value="9.8" />
         </div>
-
         <div>
           <div class="flex justify-between items-center mb-1">
-            <span class="label">Client Concentration</span>
-            <span class="val" id="duot-conc-val" style="color:var(--red)">48%</span>
+            <span class="lbl">Client Concentration</span>
+            <span class="text-xs font-bold" id="v-b-concentration" style="color:var(--red)">48%</span>
           </div>
-          <input type="range" id="duot-conc" class="sl-danger" min="0" max="100" step="1" value="48"
-                 oninput="handleSlider('duot','concentration',this)">
-          <div class="label mt-1" id="duot-conc-warn" style="color:var(--red)">⚠ HIGH CONCENTRATION RISK</div>
+          <input type="range" class="sl-warn" data-asset="assetB" data-field="concentration"
+                 min="0" max="100" step="1" value="48" />
+          <div class="lbl mt-1" id="warn-b-conc" style="color:var(--red)">⚠ CRITICAL: HIGH CONCENTRATION</div>
         </div>
-
         <div>
           <div class="flex justify-between items-center mb-1">
-            <span class="label">Fwd Revenue Growth</span>
-            <span class="val" id="duot-growth-val" style="color:var(--blue)">55%</span>
+            <span class="lbl">Fwd Revenue Growth</span>
+            <span class="text-xs font-bold" id="v-b-growth" style="color:var(--blue)">55%</span>
           </div>
-          <input type="range" id="duot-growth" min="0" max="300" step="1" value="55"
-                 oninput="handleSlider('duot','growthPct',this)">
-          <style>#duot-growth::-webkit-slider-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}
-                 #duot-growth::-moz-range-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}</style>
+          <input type="range" class="sl-b" data-asset="assetB" data-field="growth"
+                 min="0" max="500" step="1" value="55" />
         </div>
-
         <div>
           <div class="flex justify-between items-center mb-1">
-            <span class="label">Gross Margin %</span>
-            <span class="val" id="duot-margin-val" style="color:var(--blue)">35%</span>
+            <span class="lbl">Gross Margin</span>
+            <span class="text-xs font-bold" id="v-b-margin" style="color:var(--blue)">35%</span>
           </div>
-          <input type="range" id="duot-margin" min="0" max="90" step="1" value="35"
-                 oninput="handleSlider('duot','marginPct',this)">
-          <style>#duot-margin::-webkit-slider-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}
-                 #duot-margin::-moz-range-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}</style>
+          <input type="range" class="sl-b" data-asset="assetB" data-field="margin"
+                 min="0" max="90" step="1" value="35" />
         </div>
-
         <div>
           <div class="flex justify-between items-center mb-1">
-            <span class="label">Enterprise Value ($M)</span>
-            <span class="val" id="duot-ev-val" style="color:var(--blue)">$45M</span>
+            <span class="lbl">Enterprise Value ($M)</span>
+            <span class="text-xs font-bold" id="v-b-ev" style="color:var(--blue)">$45M</span>
           </div>
-          <input type="range" id="duot-ev" min="1" max="500" step="1" value="45"
-                 oninput="handleSlider('duot','ev',this)">
-          <style>#duot-ev::-webkit-slider-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}
-                 #duot-ev::-moz-range-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}</style>
+          <input type="range" class="sl-b" data-asset="assetB" data-field="ev"
+                 min="1" max="10000" step="5" value="45" />
         </div>
-
         <div>
           <div class="flex justify-between items-center mb-1">
-            <span class="label">Cash Ratio</span>
-            <span class="val" id="duot-cash-val" style="color:var(--blue)">0.80</span>
+            <span class="lbl">Cash Ratio</span>
+            <span class="text-xs font-bold" id="v-b-cash" style="color:var(--blue)">0.80</span>
           </div>
-          <input type="range" id="duot-cashr" min="0.05" max="5" step="0.05" value="0.80"
-                 oninput="handleSlider('duot','cashRatio',this)">
-          <style>#duot-cashr::-webkit-slider-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}
-                 #duot-cashr::-moz-range-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}</style>
+          <input type="range" class="sl-b" data-asset="assetB" data-field="cash"
+                 min="0.01" max="10" step="0.01" value="0.80" />
         </div>
       </div>
 
-      <div class="mt-3 pt-3" style="border-top:1px solid rgba(0,180,255,0.1)">
-        <div class="flex justify-between">
-          <span class="label">Raw Convexity</span>
-          <span class="text-xs font-bold" id="duot-raw" style="color:#4a90b0">—</span>
+      <div class="grid grid-cols-2 gap-2 mt-3">
+        <div class="score-box" style="border-color:rgba(0,180,255,0.3)">
+          <div class="lbl">Raw Convexity</div>
+          <div class="text-sm font-bold mt-1" id="raw-b" style="color:#3a7a9a">—</div>
         </div>
-        <div class="flex justify-between mt-1">
-          <span class="label">Survival Score</span>
-          <span class="text-xs font-bold" id="duot-score" style="color:var(--blue)">—</span>
+        <div class="score-box" style="border-color:rgba(0,180,255,0.6)">
+          <div class="lbl">Survival Score</div>
+          <div class="text-sm font-bold glow-b mt-1" id="sur-b" style="color:var(--blue)">—</div>
         </div>
       </div>
     </div>
-  </div>
+
+  </div><!-- /two-col -->
 </section>
 
 <!-- ═══════════════════════════════════ ANALYTICS CANVAS -->
 <section class="px-4 mt-5">
-  <div class="label mb-3">📊 Survival-Weighted Expectancy Score</div>
-  <div class="card" style="padding:20px">
-    <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
-      <span class="text-xs" style="color:#4a7a4a">
-        Formula: (FwdGrowth% × GrossMargin%) ÷ (EV / CashRatio) × Shock Penalties
-      </span>
-      <div class="flex gap-3 text-xs flex-wrap">
-        <span style="color:var(--g)">■ INOD</span>
-        <span style="color:var(--blue)">■ DUOT</span>
-        <span style="color:rgba(255,183,0,0.7)">■ Raw</span>
+  <div class="lbl mb-3">📊 Survival-Weighted Expectancy Scores</div>
+  <div class="card" style="padding:18px">
+    <div class="flex justify-between items-start mb-3 flex-wrap gap-2">
+      <div class="text-xs" style="color:#2a5a2a">
+        (Growth% × Margin%) ÷ (EV / Cash) × Shock Penalties
+      </div>
+      <div id="chart-legend" class="flex gap-4 text-xs flex-wrap">
+        <span><span style="color:var(--g)">■</span> <span id="leg-a">INOD</span></span>
+        <span><span style="color:var(--blue)">■</span> <span id="leg-b">DUOT</span></span>
+        <span><span style="color:rgba(255,183,0,0.6)">■</span> Raw (pre-penalty)</span>
       </div>
     </div>
-    <div style="height:200px; position:relative">
+    <div style="position:relative;height:190px">
       <canvas id="score-chart"></canvas>
     </div>
-    <div class="flex gap-4 mt-3 text-xs flex-wrap" style="color:#4a7a4a">
-      <span>Concentration penalty: &gt;30% → –1.5%/pt above threshold</span>
-      <span>Dilution penalty: –28% to score</span>
+    <div class="lbl mt-3">
+      Conc. penalty: &gt;30% → −1.5% per pp above threshold (max −50%) ·
+      Dilution penalty: active → −28% flat
     </div>
   </div>
 </section>
 
 <!-- ═══════════════════════════════════ AUDIT MANIFEST -->
 <section class="px-4 mt-5">
-  <div class="label mb-3">📋 Audit Manifest</div>
+  <div class="lbl mb-3">📋 Audit Manifest — live JSON system profile</div>
   <div class="card" style="padding:0">
-    <div class="flex items-center justify-between px-4 py-3" style="border-bottom:1px solid rgba(0,255,65,0.1)">
-      <span class="text-xs font-bold" style="color:var(--g)">SYSTEM PROFILE &amp; RISK SNAPSHOT</span>
-      <div class="flex gap-2">
-        <button id="copy-btn" class="btn btn-g" style="padding:8px 14px;font-size:0.65rem;min-height:36px">
-          ⎘ COPY
-        </button>
-        <span id="copy-ok" class="hidden text-xs font-bold" style="color:var(--g);align-self:center">✓ COPIED</span>
+    <div class="flex items-center justify-between px-4 py-3 flex-wrap gap-2"
+         style="border-bottom:1px solid rgba(0,255,65,0.09)">
+      <span class="text-xs font-bold" style="color:var(--g)">RISK SNAPSHOT &amp; ASSET PROFILE</span>
+      <div class="flex gap-2 items-center">
+        <button id="copy-btn" class="btn btn-g btn-sm">⎘ COPY</button>
+        <span id="copy-ok" class="hidden text-xs font-bold" style="color:var(--g)">✓ COPIED</span>
       </div>
     </div>
-    <div class="px-4 py-3" style="max-height:320px; overflow-y:auto">
+    <div style="max-height:320px;overflow-y:auto" class="px-4 py-3">
       <pre id="audit-text">Generating manifest…</pre>
     </div>
   </div>
 </section>
 
-<!-- ═══════════════════════════════════ CONSULT AUDITOR -->
-<section class="px-4 mt-5">
-  <button id="consult-btn" class="btn btn-amber btn-lg w-full" style="width:100%">
-    <span>▶ CONSULT SYSTEM AUDITOR</span>
-    <span id="consult-status" class="text-xs ml-1"></span>
+<!-- ═══════════════════════════════════ CONSULT BUTTON -->
+<section class="px-4 mt-4">
+  <button id="consult-btn" class="btn btn-amber btn-lg">
+    ▶ CONSULT SYSTEM AUDITOR
+    <span id="consult-spin" class="hidden blink">◌</span>
   </button>
-  <div class="label mt-2" style="color:rgba(255,183,0,0.35)">
-    Dispatches audit manifest to OpenRouter · Key fetched from memory at exact millisecond of request
+  <div class="lbl mt-2" style="color:rgba(255,183,0,0.3)">
+    Dispatches live audit JSON to OpenRouter · API key read from localStorage at exact dispatch millisecond
   </div>
 </section>
 
-<!-- ═══════════════════════════════════ AI RESPONSE TERMINAL -->
-<section class="px-4 mt-4 pb-6" id="terminal-section" style="display:none">
-  <div class="label mb-2">⬛ AUDITOR RESPONSE TERMINAL</div>
+<!-- ═══════════════════════════════════ AI TERMINAL -->
+<section class="px-4 mt-4 pb-8" id="terminal-wrap" style="display:none">
+  <div class="lbl mb-2">⬛ COMPLIANCE AUDITOR RESPONSE</div>
   <div class="card card-warn" style="padding:0">
-    <div class="px-4 py-2 flex items-center gap-2" style="border-bottom:1px solid rgba(255,183,0,0.15)">
-      <span class="text-xs" style="color:rgba(255,183,0,0.55)">
-        Model: <span id="model-display">google/gemini-2.5-flash</span>
+    <div class="flex items-center justify-between px-4 py-2 flex-wrap gap-2"
+         style="border-bottom:1px solid rgba(255,183,0,0.12)">
+      <span class="text-xs" style="color:rgba(255,183,0,0.5)">
+        Model: <span id="model-lbl">google/gemini-2.5-flash</span>
       </span>
-      <span id="stream-cursor" class="blink text-xs hidden" style="color:var(--amber)">▮</span>
+      <div class="flex gap-2 items-center">
+        <span id="stream-cur" class="blink hidden text-xs" style="color:var(--amber)">▮</span>
+        <button id="clear-ai" class="btn btn-red btn-sm">✕ CLEAR</button>
+      </div>
     </div>
-    <div class="px-4 py-4" style="min-height:100px; max-height:480px; overflow-y:auto">
+    <div id="ai-scroll" style="min-height:80px;max-height:520px;overflow-y:auto;padding:16px">
       <div id="ai-response"></div>
     </div>
   </div>
 </section>
 
-<!-- ═══════════════════════════════════════════════════ SCRIPT -->
+<!-- ══════════════════════════════════════════════ SCRIPT -->
 <script>
-/* ═══════════════════════════════════════════════════════════════════
-   STATE
+/* ══════════════════════════════════════════════════════════════════
+   UNIFIED REACTIVE STATE
+   (exact structure per spec — sliders initialise all numeric values)
 ══════════════════════════════════════════════════════════════════ */
 const S = {
-  nav:  1000, cash: 200, deployed: 800, optionsFloor: 2500,
-  inod: { price:40,    concentration:32, growthPct:40, marginPct:22, ev:600, cashRatio:0.45, dilution:false },
-  duot: { price:9.80,  concentration:48, growthPct:55, marginPct:35, ev:45,  cashRatio:0.80, dilution:true  },
+  assetA: {
+    ticker: "INOD",
+    price: 40, concentration: 32, growth: 40, margin: 22, ev: 600, cash: 0.45,
+    rawConvexity: 0, survivalScore: 0, dilution: false
+  },
+  assetB: {
+    ticker: "DUOT",
+    price: 9.8, concentration: 48, growth: 55, margin: 35, ev: 45, cash: 0.80,
+    rawConvexity: 0, survivalScore: 0, dilution: true
+  }
 };
 
-/* ═══════════════════════════════════════════════════════════════════
+/* ══════════════════════════════════════════════════════════════════
    FORMULA ENGINE
 ══════════════════════════════════════════════════════════════════ */
-function rawConvexity(g) {
-  // (Forward Growth% × Gross Margin%) / (EV / Cash Ratio)
-  const denom = g.ev / Math.max(g.cashRatio, 0.01);
-  return denom > 0 ? (g.growthPct * g.marginPct) / denom : 0;
-}
+function recompute(key) {
+  const a = S[key];
 
-function survivalScore(g) {
-  let s = rawConvexity(g);
-  // Shock penalty — single-customer concentration > 30%
-  if (g.concentration > 30) {
-    const excess   = g.concentration - 30;
-    const penalty  = Math.min(excess * 0.015, 0.50); // max –50%
-    s *= (1 - penalty);
+  // Raw Convexity = (Growth% × Margin%) / (EV / CashRatio)
+  const denom = a.ev / Math.max(a.cash, 0.001);
+  a.rawConvexity = denom > 0 ? (a.growth * a.margin) / denom : 0;
+
+  let score = a.rawConvexity;
+
+  // Concentration shock penalty: −1.5% per 1pp above 30%, capped at −50%
+  if (a.concentration > 30) {
+    const excess  = a.concentration - 30;
+    const penalty = Math.min(excess * 0.015, 0.50);
+    score *= (1 - penalty);
   }
-  // Shock penalty — active dilution flag
-  if (g.dilution) s *= 0.72;
-  return Math.max(0, s);
+
+  // Dilution penalty: flat −28% if flag active
+  if (a.dilution) score *= 0.72;
+
+  a.survivalScore = Math.max(0, score);
 }
 
-/* ═══════════════════════════════════════════════════════════════════
+function recomputeAll() {
+  recompute('assetA');
+  recompute('assetB');
+}
+
+/* ══════════════════════════════════════════════════════════════════
    CHART
 ══════════════════════════════════════════════════════════════════ */
 let chart = null;
@@ -598,327 +601,432 @@ function initChart() {
   chart = new Chart(ctx, {
     type: 'bar',
     data: {
-      labels: ['INOD  (Innodata)', 'DUOT  (Duos Tech)'],
+      labels: [S.assetA.ticker, S.assetB.ticker],
       datasets: [
         {
-          label: 'Survival-Weighted Score',
+          label: 'Survival Score',
           data: [0, 0],
-          backgroundColor: ['rgba(0,255,65,0.15)', 'rgba(0,180,255,0.15)'],
+          backgroundColor: ['rgba(0,255,65,0.14)', 'rgba(0,180,255,0.14)'],
           borderColor:      ['#00ff41', '#00b4ff'],
           borderWidth: 2,
         },
         {
-          label: 'Raw Convexity (pre-penalty)',
+          label: 'Raw Convexity',
           data: [0, 0],
-          backgroundColor: ['rgba(255,183,0,0.08)', 'rgba(255,183,0,0.08)'],
-          borderColor:      ['rgba(255,183,0,0.5)', 'rgba(255,183,0,0.5)'],
+          backgroundColor: ['rgba(255,183,0,0.07)', 'rgba(255,183,0,0.07)'],
+          borderColor:      ['rgba(255,183,0,0.48)', 'rgba(255,183,0,0.48)'],
           borderWidth: 1,
-          borderDash: [4,3],
+          borderDash: [5, 3],
         },
       ],
     },
     options: {
       indexAxis: 'y',
-      responsive: true,
-      maintainAspectRatio: false,
-      animation: { duration: 200 },
+      responsive: true, maintainAspectRatio: false,
+      animation: { duration: 160 },
       plugins: {
         legend: { display: false },
         tooltip: {
           backgroundColor: '#0a0a0a',
-          borderColor: 'rgba(0,255,65,0.3)',
-          borderWidth: 1,
+          borderColor: 'rgba(0,255,65,0.25)', borderWidth: 1,
           callbacks: {
-            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.x.toFixed(4)}`,
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.x.toFixed(5)}`,
           },
         },
       },
       scales: {
         x: {
-          ticks: { color: '#3a6a3a', font: { family: 'JetBrains Mono', size: 10 } },
-          grid:  { color: 'rgba(0,255,65,0.06)' },
+          ticks: { color: '#2a5a2a', font: { family: 'JetBrains Mono', size: 10 } },
+          grid:  { color: 'rgba(0,255,65,0.05)' },
         },
         y: {
-          ticks: { color: '#4a8a6a', font: { family: 'JetBrains Mono', size: 11 } },
-          grid:  { color: 'rgba(0,255,65,0.04)' },
+          ticks: { color: '#4a8a6a', font: { family: 'JetBrains Mono', size: 11 }, maxTicksLimit: 3 },
+          grid:  { color: 'rgba(0,255,65,0.03)' },
         },
       },
     },
   });
 }
 
-function updateChart() {
-  if (!chart) return;
-  const inodRaw  = rawConvexity(S.inod);
-  const duotRaw  = rawConvexity(S.duot);
-  const inodSurv = survivalScore(S.inod);
-  const duotSurv = survivalScore(S.duot);
+/* ══════════════════════════════════════════════════════════════════
+   RENDER — full sweep on every state change
+══════════════════════════════════════════════════════════════════ */
+function renderAll() {
+  renderAsset('assetA', 'a');
+  renderAsset('assetB', 'b');
+  renderChart();
+  renderManifest();
+}
 
-  chart.data.datasets[0].data = [inodSurv, duotSurv];
-  chart.data.datasets[1].data = [inodRaw,  duotRaw];
+function renderAsset(key, tag) {
+  const a   = S[key];
+  const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
+
+  // Numeric values
+  set(`v-${tag}-price`,         `$${a.price.toFixed(2)}`);
+  set(`v-${tag}-concentration`, `${a.concentration}%`);
+  set(`v-${tag}-growth`,        `${a.growth}%`);
+  set(`v-${tag}-margin`,        `${a.margin}%`);
+  set(`v-${tag}-ev`,            `$${a.ev}M`);
+  set(`v-${tag}-cash`,          a.cash.toFixed(2));
+
+  // Concentration class + warning
+  const concEl  = document.getElementById(`v-${tag}-concentration`);
+  const warnEl  = document.getElementById(`warn-${tag}-conc`);
+  if (concEl) {
+    concEl.className = `text-xs font-bold ${a.concentration > 40 ? 'c-danger' : a.concentration > 30 ? 'c-caution' : 'c-safe'}`;
+  }
+  if (warnEl) {
+    warnEl.textContent =
+      a.concentration > 40 ? '⚠ CRITICAL: EXTREME CONCENTRATION RISK' :
+      a.concentration > 30 ? '⚠ SHOCK PENALTY ACTIVE (>' + a.concentration + '% threshold breach)' : '';
+    warnEl.style.color = a.concentration > 40 ? 'var(--red)' : 'var(--amber)';
+  }
+
+  // Scores
+  set(`raw-${tag}`, a.rawConvexity.toFixed(5));
+  set(`sur-${tag}`, a.survivalScore.toFixed(5));
+
+  // Card border state
+  const card = document.getElementById(`card-${tag}`);
+  if (card) {
+    card.className = `card card-${tag}` +
+      (a.concentration > 40 ? ' card-danger' : a.concentration > 30 ? ' card-warn' : '');
+  }
+
+  // Chart legend labels
+  document.getElementById(`leg-${tag}`).textContent = a.ticker;
+}
+
+function renderChart() {
+  if (!chart) return;
+  chart.data.labels              = [S.assetA.ticker, S.assetB.ticker];
+  chart.data.datasets[0].data   = [S.assetA.survivalScore, S.assetB.survivalScore];
+  chart.data.datasets[1].data   = [S.assetA.rawConvexity,  S.assetB.rawConvexity];
   chart.update('active');
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   SLIDER HANDLER
+/* ══════════════════════════════════════════════════════════════════
+   AUDIT MANIFEST — fully dynamic, uses live ticker names & scores
 ══════════════════════════════════════════════════════════════════ */
-function handleSlider(ticker, field, el) {
-  S[ticker][field] = parseFloat(el.value);
-  updateAll();
-}
+function renderManifest() {
+  const penaltyMultiplier = a => {
+    const raw = a.rawConvexity;
+    return raw > 0 ? +(a.survivalScore / raw).toFixed(4) : 1;
+  };
 
-function toggleDilution(ticker, btn) {
-  S[ticker].dilution = !S[ticker].dilution;
-  btn.classList.toggle('on', S[ticker].dilution);
-  btn.textContent = S[ticker].dilution ? '⚠ DILUTION' : '⊘ DILUTION';
-  updateAll();
-}
+  const flagsA = buildFlags(S.assetA);
+  const flagsB = buildFlags(S.assetB);
 
-/* ═══════════════════════════════════════════════════════════════════
-   UI UPDATE
-══════════════════════════════════════════════════════════════════ */
-function concClass(pct) {
-  return pct > 40 ? 'conc-danger' : pct > 30 ? 'conc-caution' : 'conc-safe';
-}
-
-function updateAll() {
-  const iRaw  = rawConvexity(S.inod);
-  const dRaw  = rawConvexity(S.duot);
-  const iSurv = survivalScore(S.inod);
-  const dSurv = survivalScore(S.duot);
-
-  // ── INOD display
-  setText('inod-price-val',  `$${S.inod.price.toFixed(2)}`);
-  setClassText('inod-conc-val', concClass(S.inod.concentration), `${S.inod.concentration}%`);
-  setText('inod-growth-val', `${S.inod.growthPct}%`);
-  setText('inod-margin-val', `${S.inod.marginPct}%`);
-  setText('inod-ev-val',     `$${S.inod.ev}M`);
-  setText('inod-cash-val',   S.inod.cashRatio.toFixed(2));
-  setText('inod-raw',        iRaw.toFixed(4));
-  setText('inod-score',      iSurv.toFixed(4));
-  setText('inod-conc-warn',
-    S.inod.concentration > 40 ? '⚠ CRITICAL: EXTREME CONCENTRATION' :
-    S.inod.concentration > 30 ? '⚠ SHOCK PENALTY ACTIVE' : '');
-
-  // ── DUOT display
-  setText('duot-price-val',  `$${S.duot.price.toFixed(2)}`);
-  setClassText('duot-conc-val', concClass(S.duot.concentration), `${S.duot.concentration}%`);
-  setText('duot-growth-val', `${S.duot.growthPct}%`);
-  setText('duot-margin-val', `${S.duot.marginPct}%`);
-  setText('duot-ev-val',     `$${S.duot.ev}M`);
-  setText('duot-cash-val',   S.duot.cashRatio.toFixed(2));
-  setText('duot-raw',        dRaw.toFixed(4));
-  setText('duot-score',      dSurv.toFixed(4));
-  setText('duot-conc-warn',
-    S.duot.concentration > 40 ? '⚠ CRITICAL: EXTREME CONCENTRATION' :
-    S.duot.concentration > 30 ? '⚠ SHOCK PENALTY ACTIVE' : '');
-
-  // Card border flash on danger
-  document.getElementById('card-inod').className =
-    `card${S.inod.concentration > 40 ? ' card-danger' : S.inod.concentration > 30 ? ' card-warn' : ''}`;
-  document.getElementById('card-duot').className =
-    `card${S.duot.concentration > 40 ? ' card-danger' : S.duot.concentration > 30 ? ' card-warn' : ''}`;
-
-  // Phase delta
-  setText('floor-delta', `$${(S.optionsFloor - S.nav).toFixed(2)}`);
-
-  updateChart();
-  generateAudit(iRaw, dRaw, iSurv, dSurv);
-}
-
-function setText(id, v)            { const el = document.getElementById(id); if(el) el.textContent = v; }
-function setClassText(id, cls, v)  { const el = document.getElementById(id); if(el){ el.className = `val ${cls}`; el.textContent = v; } }
-
-/* ═══════════════════════════════════════════════════════════════════
-   AUDIT MANIFEST GENERATOR
-══════════════════════════════════════════════════════════════════ */
-function generateAudit(iRaw, dRaw, iSurv, dSurv) {
   const manifest = {
-    generated_utc: new Date().toISOString(),
-    system_version: "rocky3-audit-v3",
+    generated_utc:  new Date().toISOString(),
+    system_version: "rocky3-audit-v4-dynamic",
     portfolio: {
-      account_equity_usd:   S.nav,
-      available_cash_usd:   S.cash,
-      deployed_capital_usd: S.deployed,
-      options_unlock_floor_usd: S.optionsFloor,
-      phase_status: "PHASE_1_OPTIONS_HARD_LOCKED",
-      floor_deficit_usd: +(S.optionsFloor - S.nav).toFixed(2),
+      account_equity_usd:       1000,
+      available_cash_usd:       200,
+      deployed_capital_usd:     800,
+      options_floor_usd:        2500,
+      phase_status:             "PHASE_1_OPTIONS_HARD_LOCKED",
+      floor_deficit_usd:        1500,
     },
     assets: {
-      INOD: {
-        name: "Innodata Inc",
-        layer: "L1_DATA_ENGINEERING",
-        share_price_usd:     S.inod.price,
-        client_concentration_pct: S.inod.concentration,
-        forward_revenue_growth_pct: S.inod.growthPct,
-        gross_margin_pct:    S.inod.marginPct,
-        enterprise_value_M:  S.inod.ev,
-        cash_ratio:          S.inod.cashRatio,
-        dilution_flag_active: S.inod.dilution,
-        raw_convexity_score: +iRaw.toFixed(6),
-        survival_score:      +iSurv.toFixed(6),
-        shock_penalties: {
-          concentration_penalty_active: S.inod.concentration > 30,
-          dilution_penalty_active:      S.inod.dilution,
-          effective_multiplier: +(iSurv / Math.max(iRaw, 1e-9)).toFixed(4),
-        },
+      [S.assetA.ticker]: {
+        ticker:                    S.assetA.ticker,
+        share_price_usd:           S.assetA.price,
+        client_concentration_pct:  S.assetA.concentration,
+        fwd_revenue_growth_pct:    S.assetA.growth,
+        gross_margin_pct:          S.assetA.margin,
+        enterprise_value_M_usd:    S.assetA.ev,
+        cash_ratio:                S.assetA.cash,
+        dilution_active:           S.assetA.dilution,
+        raw_convexity_score:       +S.assetA.rawConvexity.toFixed(6),
+        survival_score:            +S.assetA.survivalScore.toFixed(6),
+        penalty_multiplier:        penaltyMultiplier(S.assetA),
+        risk_flags:                flagsA,
       },
-      DUOT: {
-        name: "Duos Technologies Group",
-        layer: "L1_EDGE_AI_INFRA",
-        share_price_usd:     S.duot.price,
-        client_concentration_pct: S.duot.concentration,
-        forward_revenue_growth_pct: S.duot.growthPct,
-        gross_margin_pct:    S.duot.marginPct,
-        enterprise_value_M:  S.duot.ev,
-        cash_ratio:          S.duot.cashRatio,
-        dilution_flag_active: S.duot.dilution,
-        raw_convexity_score: +dRaw.toFixed(6),
-        survival_score:      +dSurv.toFixed(6),
-        shock_penalties: {
-          concentration_penalty_active: S.duot.concentration > 30,
-          dilution_penalty_active:      S.duot.dilution,
-          effective_multiplier: +(dSurv / Math.max(dRaw, 1e-9)).toFixed(4),
-        },
+      [S.assetB.ticker]: {
+        ticker:                    S.assetB.ticker,
+        share_price_usd:           S.assetB.price,
+        client_concentration_pct:  S.assetB.concentration,
+        fwd_revenue_growth_pct:    S.assetB.growth,
+        gross_margin_pct:          S.assetB.margin,
+        enterprise_value_M_usd:    S.assetB.ev,
+        cash_ratio:                S.assetB.cash,
+        dilution_active:           S.assetB.dilution,
+        raw_convexity_score:       +S.assetB.rawConvexity.toFixed(6),
+        survival_score:            +S.assetB.survivalScore.toFixed(6),
+        penalty_multiplier:        penaltyMultiplier(S.assetB),
+        risk_flags:                flagsB,
       },
     },
-    risk_flags: [
-      ...(S.inod.concentration > 30  ? [`INOD: Single-customer concentration ${S.inod.concentration}% exceeds 30% threshold`] : []),
-      ...(S.duot.concentration > 30  ? [`DUOT: Single-customer concentration ${S.duot.concentration}% exceeds 30% threshold`] : []),
-      ...(S.inod.dilution             ? ['INOD: Active share dilution flag — EPS compression risk'] : []),
-      ...(S.duot.dilution             ? ['DUOT: Active share dilution flag — EPS compression risk'] : []),
-      ...(S.nav < S.optionsFloor      ? [`NAV $${S.nav} below $${S.optionsFloor} options floor — equity-only execution`] : []),
-      ...(S.duot.concentration > 40   ? ['DUOT: CRITICAL concentration >40% — binary single-event failure risk'] : []),
-    ],
-    formula_used: "(ForwardGrowth% × GrossMargin%) / (EV_millions / CashRatio)",
+    formula: "(FwdGrowth% × GrossMargin%) / (EV_M / CashRatio)",
     penalty_rules: {
-      concentration: "score × (1 - min((conc% - 30) × 0.015, 0.50)) if conc% > 30%",
-      dilution:      "score × 0.72 if dilution_flag = true",
+      concentration: "score × (1 − min((conc% − 30) × 0.015, 0.50))  when conc% > 30",
+      dilution:      "score × 0.72  when dilution_active = true",
     },
+    total_risk_flags: flagsA.length + flagsB.length,
   };
 
   document.getElementById('audit-text').textContent = JSON.stringify(manifest, null, 2);
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   COPY BUTTON
+function buildFlags(a) {
+  const flags = [];
+  if (a.concentration > 40) flags.push(`${a.ticker}: CRITICAL — concentration ${a.concentration}% exceeds 40%`);
+  else if (a.concentration > 30) flags.push(`${a.ticker}: concentration ${a.concentration}% above 30% threshold`);
+  if (a.dilution) flags.push(`${a.ticker}: active dilution — EPS compression & float inflation risk`);
+  if (a.ev < 50)  flags.push(`${a.ticker}: micro-cap EV $${a.ev}M — extreme liquidity & gap-down risk`);
+  return flags;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   SLIDER BINDINGS — all inputs drive state exclusively
+══════════════════════════════════════════════════════════════════ */
+function initSliders() {
+  document.querySelectorAll('input[type="range"][data-asset]').forEach(el => {
+    el.addEventListener('input', () => {
+      const key   = el.dataset.asset;
+      const field = el.dataset.field;
+      S[key][field] = parseFloat(el.value);
+      recompute(key);
+      renderAll();
+    });
+    // Prevent page scroll on mobile while dragging a slider
+    el.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   TICKER NAME INPUTS — editable labels update everything
+══════════════════════════════════════════════════════════════════ */
+function initTickerInputs() {
+  ['a', 'b'].forEach(tag => {
+    const key = tag === 'a' ? 'assetA' : 'assetB';
+    const el  = document.getElementById(`ticker-${tag}`);
+    el.addEventListener('input', () => {
+      S[key].ticker = (el.value.trim().toUpperCase() || (tag === 'a' ? 'ASSET_A' : 'ASSET_B'));
+      renderAll();
+    });
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   DILUTION TOGGLE
+══════════════════════════════════════════════════════════════════ */
+function toggleDilution(key) {
+  const tag = key === 'assetA' ? 'a' : 'b';
+  S[key].dilution = !S[key].dilution;
+  const btn = document.getElementById(`dil-${tag}`);
+  btn.classList.toggle('on', S[key].dilution);
+  btn.textContent = S[key].dilution ? '⚠ DILUTION' : '⊘ DILUTION';
+  recompute(key);
+  renderAll();
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   SYNC SLIDERS FROM STATE (used after AI populate)
+══════════════════════════════════════════════════════════════════ */
+function syncSliders(key) {
+  const a   = S[key];
+  const tag = key === 'assetA' ? 'a' : 'b';
+
+  document.querySelectorAll(`input[type="range"][data-asset="${key}"]`).forEach(el => {
+    const f = el.dataset.field;
+    if (f in a) el.value = a[f];
+  });
+
+  // Ticker text input
+  document.getElementById(`ticker-${tag}`).value = a.ticker;
+
+  // Dilution toggle
+  const dilBtn = document.getElementById(`dil-${tag}`);
+  dilBtn.classList.toggle('on', a.dilution);
+  dilBtn.textContent = a.dilution ? '⚠ DILUTION' : '⊘ DILUTION';
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   COPY AUDIT
 ══════════════════════════════════════════════════════════════════ */
 document.getElementById('copy-btn').addEventListener('click', async () => {
   const text = document.getElementById('audit-text').textContent;
   try {
     await navigator.clipboard.writeText(text);
   } catch {
-    // Fallback for older mobile browsers
-    const ta = document.createElement('textarea');
-    ta.value = text;
-    ta.style.position = 'fixed'; ta.style.opacity = '0';
-    document.body.appendChild(ta);
-    ta.select(); document.execCommand('copy');
+    const ta = Object.assign(document.createElement('textarea'), { value: text });
+    Object.assign(ta.style, { position: 'fixed', opacity: '0' });
+    document.body.appendChild(ta); ta.select(); document.execCommand('copy');
     document.body.removeChild(ta);
   }
-  const ok = document.getElementById('copy-ok');
+  const ok  = document.getElementById('copy-ok');
   const btn = document.getElementById('copy-btn');
   ok.classList.remove('hidden');
   btn.classList.add('flash');
   setTimeout(() => { ok.classList.add('hidden'); btn.classList.remove('flash'); }, 1800);
 });
 
-/* ═══════════════════════════════════════════════════════════════════
-   CONFIG — API KEY (localStorage only, never hardcoded)
+/* ══════════════════════════════════════════════════════════════════
+   CONFIG — localStorage key management
 ══════════════════════════════════════════════════════════════════ */
-const KEY_STORE  = 'rocky3_api_key';
-const MDL_STORE  = 'rocky3_model';
+const KS = 'rocky3_api_key';
+const MS = 'rocky3_model';
 
 function loadConfig() {
-  const savedKey   = localStorage.getItem(KEY_STORE);
-  const savedModel = localStorage.getItem(MDL_STORE) || 'google/gemini-2.5-flash';
-
-  // Show masked indicator if key exists (do NOT populate password field)
-  if (savedKey) {
-    document.getElementById('cfg-apikey').placeholder =
-      `●●●● key saved (${savedKey.length} chars) — enter new key to replace`;
-  }
-  document.getElementById('cfg-model').value = savedModel;
-  setText('model-display', savedModel);
+  const k = localStorage.getItem(KS);
+  const m = localStorage.getItem(MS) || 'google/gemini-2.5-flash';
+  if (k) document.getElementById('cfg-key').placeholder = `●●●● key saved (${k.length} chars) · enter new to replace`;
+  document.getElementById('cfg-model').value = m;
+  document.getElementById('model-lbl').textContent = m;
 }
 
 document.getElementById('gear-btn').addEventListener('click', () => {
-  const pane = document.getElementById('config-pane');
-  pane.classList.toggle('hidden');
-  if (!pane.classList.contains('hidden')) pane.classList.add('fade-in');
+  const p = document.getElementById('config-pane');
+  p.classList.toggle('hidden');
+  if (!p.classList.contains('hidden')) p.classList.add('fade-up');
 });
 
-document.getElementById('cfg-save-btn').addEventListener('click', () => {
-  const keyEl   = document.getElementById('cfg-apikey');
-  const modelEl = document.getElementById('cfg-model');
-  const status  = document.getElementById('cfg-status');
-  const newKey  = keyEl.value.trim();
-  const newModel= modelEl.value.trim() || 'google/gemini-2.5-flash';
-
-  if (newKey) localStorage.setItem(KEY_STORE, newKey);
-  localStorage.setItem(MDL_STORE, newModel);
-
-  keyEl.value = '';
-  keyEl.placeholder = `●●●● key saved — enter new key to replace`;
-  setText('model-display', newModel);
-  status.textContent = '✓ Saved to localStorage';
-  status.style.color = 'var(--g)';
-  setTimeout(() => { status.textContent = ''; }, 2000);
+document.getElementById('cfg-save').addEventListener('click', () => {
+  const k = document.getElementById('cfg-key').value.trim();
+  const m = document.getElementById('cfg-model').value.trim() || 'google/gemini-2.5-flash';
+  if (k) localStorage.setItem(KS, k);
+  localStorage.setItem(MS, m);
+  document.getElementById('cfg-key').value = '';
+  document.getElementById('cfg-key').placeholder = `●●●● key saved · enter new to replace`;
+  document.getElementById('model-lbl').textContent = m;
+  const st = document.getElementById('cfg-status');
+  st.textContent = '✓ Saved'; st.style.color = 'var(--g)';
+  setTimeout(() => { st.textContent = ''; }, 2000);
 });
 
-document.getElementById('cfg-clear-btn').addEventListener('click', () => {
-  localStorage.removeItem(KEY_STORE);
-  document.getElementById('cfg-apikey').placeholder =
-    'Enter your OpenRouter API key…';
-  const status = document.getElementById('cfg-status');
-  status.textContent = '⚠ Key cleared';
-  status.style.color = 'var(--red)';
-  setTimeout(() => { status.textContent = ''; }, 2000);
+document.getElementById('cfg-clear').addEventListener('click', () => {
+  localStorage.removeItem(KS);
+  document.getElementById('cfg-key').placeholder = 'Enter your OpenRouter API key…';
+  const st = document.getElementById('cfg-status');
+  st.textContent = '⚠ Cleared'; st.style.color = 'var(--red)';
+  setTimeout(() => { st.textContent = ''; }, 2000);
 });
 
-/* ═══════════════════════════════════════════════════════════════════
-   OPENROUTER INTELLIGENCE LAYER
+/* ══════════════════════════════════════════════════════════════════
+   AI POPULATE — dispatches ticker to AI, auto-populates all sliders
 ══════════════════════════════════════════════════════════════════ */
-document.getElementById('consult-btn').addEventListener('click', consultAuditor);
-
-async function consultAuditor() {
-  // ── Key fetched from localStorage at the exact millisecond of dispatch ──
-  const apiKey = localStorage.getItem(KEY_STORE);
+async function aiPopulate(key) {
+  const apiKey = localStorage.getItem(KS);
   if (!apiKey) {
-    alert('No API key found.\nOpen ⚙ settings and save your OpenRouter key first.');
+    alert('Configure your OpenRouter API key first (⚙ CONFIG).');
     document.getElementById('config-pane').classList.remove('hidden');
     return;
   }
 
-  const model       = localStorage.getItem(MDL_STORE) || 'google/gemini-2.5-flash';
-  const auditText   = document.getElementById('audit-text').textContent;
-  const systemPrompt =
-    "Act as an aggressive, zero-bias financial risk compliance officer. " +
-    "Cross-examine this data block. Tell me if the numbers justify liquidating " +
-    "a highly volatile crypto token stash to fund this position. Be blunt.";
+  const tag    = key === 'assetA' ? 'a' : 'b';
+  const model  = localStorage.getItem(MS) || 'google/gemini-2.5-flash';
+  const ticker = S[key].ticker;
+  const btn    = document.getElementById(`pop-${tag}`);
 
-  // ── Show terminal section ──
-  const section  = document.getElementById('terminal-section');
-  const respEl   = document.getElementById('ai-response');
-  const cursor   = document.getElementById('stream-cursor');
-  const statusEl = document.getElementById('consult-status');
-  const btn      = document.getElementById('consult-btn');
+  btn.textContent = '⟳ FETCHING…'; btn.disabled = true;
 
-  section.style.display  = 'block';
-  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  respEl.textContent     = '';
-  cursor.classList.remove('hidden');
-  btn.disabled           = true;
-  statusEl.textContent   = '· connecting…';
-  setText('model-display', model);
+  const prompt =
+    `Provide current public financial metrics for stock ticker symbol: ${ticker}\n` +
+    `Return ONLY a raw JSON object — no markdown, no code fences, no text before or after:\n` +
+    `{"price":<current USD share price>,"concentration":<largest single customer % of revenue 0-100>,"growth":<forward 12-month revenue growth % 0-500>,"margin":<gross margin % 0-90>,"ev":<enterprise value in millions USD>,"cash":<cash ratio decimal 0-10>,"dilution":<true if share count actively increasing else false>}`;
 
   try {
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method:  'POST',
+      method: 'POST',
       headers: {
         'Content-Type':  'application/json',
-        // ── Key read from memory at dispatch time — never hardcoded ──
-        'Authorization': `Bearer ${localStorage.getItem(KEY_STORE)}`,
+        'Authorization': `Bearer ${localStorage.getItem(KS)}`,
+        'HTTP-Referer':  window.location.href,
+        'X-Title':       'Rocky3 AI Market Discovery',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: 'You are a financial data extraction API. Return ONLY raw JSON — no markdown, no code fences, no explanation.' },
+          { role: 'user',   content: prompt },
+        ],
+      }),
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const json    = await res.json();
+    const content = json.choices?.[0]?.message?.content || '';
+
+    // Extract first JSON object from response
+    const match = content.match(/\{[\s\S]*?\}/);
+    if (!match) throw new Error('No JSON object found in response');
+    const parsed = JSON.parse(match[0]);
+
+    // Populate state from AI data
+    const fields = ['price','concentration','growth','margin','ev','cash','dilution'];
+    fields.forEach(f => {
+      if (parsed[f] !== undefined) S[key][f] = f === 'dilution' ? Boolean(parsed[f]) : parseFloat(parsed[f]) || 0;
+    });
+
+    syncSliders(key);
+    recompute(key);
+    renderAll();
+
+    btn.textContent = `✓ ${ticker} LOADED`;
+    setTimeout(() => { btn.textContent = '⚡ AI POP'; btn.disabled = false; }, 2500);
+
+  } catch (err) {
+    console.error('AI Populate error:', err);
+    btn.textContent = `✗ ERROR`;
+    setTimeout(() => { btn.textContent = '⚡ AI POP'; btn.disabled = false; }, 2500);
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   OPENROUTER CONSULT — streams compliance analysis
+══════════════════════════════════════════════════════════════════ */
+document.getElementById('consult-btn').addEventListener('click', consultAuditor);
+document.getElementById('clear-ai').addEventListener('click', () => {
+  document.getElementById('ai-response').textContent = '';
+  document.getElementById('ai-response').style.color = '#8dd88d';
+});
+
+async function consultAuditor() {
+  // Key read from localStorage at the exact millisecond of dispatch
+  const apiKey = localStorage.getItem(KS);
+  if (!apiKey) {
+    alert('Configure your OpenRouter API key first (⚙ CONFIG).');
+    document.getElementById('config-pane').classList.remove('hidden');
+    return;
+  }
+
+  const model      = localStorage.getItem(MS) || 'google/gemini-2.5-flash';
+  const auditText  = document.getElementById('audit-text').textContent;
+
+  const systemPrompt =
+    "Act as an aggressive, zero-bias institutional risk compliance officer. " +
+    "Cross-examine this micro-cap data block. " +
+    "Evaluate the current portfolio equity framework ($1,000 baseline vs $2,500 options lock floor). " +
+    "Provide a brutal assessment on whether the active survival scores and enterprise valuations " +
+    "justify liquidating a highly volatile crypto token stash to fund this equity allocation. " +
+    "Explicitly state whether to BUY this pair, HOLD dry powder, or EXCHANGE them for " +
+    "alternative high-operating-leverage assets.";
+
+  // Show terminal
+  const wrap   = document.getElementById('terminal-wrap');
+  const respEl = document.getElementById('ai-response');
+  const cursor = document.getElementById('stream-cur');
+  const spin   = document.getElementById('consult-spin');
+  const btn    = document.getElementById('consult-btn');
+
+  wrap.style.display = 'block';
+  wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  respEl.textContent  = '';
+  respEl.style.color  = '#8dd88d';
+  cursor.classList.remove('hidden');
+  spin.classList.remove('hidden');
+  btn.disabled        = true;
+  document.getElementById('model-lbl').textContent = model;
+
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${localStorage.getItem(KS)}`,   // read from memory at dispatch
         'HTTP-Referer':  window.location.href,
         'X-Title':       'Rocky3 Micro-Cap Audit Console',
       },
@@ -937,11 +1045,10 @@ async function consultAuditor() {
       throw new Error(`HTTP ${res.status}: ${err.error?.message || res.statusText}`);
     }
 
-    // ── Stream SSE response ──
+    // Stream SSE
     const reader  = res.body.getReader();
     const decoder = new TextDecoder();
     let   full    = '';
-    statusEl.textContent = '· streaming…';
 
     while (true) {
       const { done, value } = await reader.read();
@@ -954,33 +1061,36 @@ async function consultAuditor() {
         if (chunk === '[DONE]') continue;
         try {
           const delta = JSON.parse(chunk).choices?.[0]?.delta?.content;
-          if (delta) { full += delta; respEl.textContent = full; }
-        } catch { /* skip malformed chunks */ }
+          if (delta) {
+            full += delta;
+            respEl.textContent = full;
+            document.getElementById('ai-scroll').scrollTop =
+              document.getElementById('ai-scroll').scrollHeight;
+          }
+        } catch { /* skip malformed SSE chunks */ }
       }
-      // Keep terminal scrolled to bottom during stream
-      respEl.parentElement.scrollTop = respEl.parentElement.scrollHeight;
     }
 
-    statusEl.textContent = '· complete';
-    setTimeout(() => { statusEl.textContent = ''; }, 3000);
-
   } catch (err) {
-    respEl.textContent = `[ERROR] ${err.message}`;
+    respEl.textContent = `[SYSTEM ERROR]\n${err.message}`;
     respEl.style.color = 'var(--red)';
-    statusEl.textContent = '· failed';
   } finally {
     cursor.classList.add('hidden');
+    spin.classList.add('hidden');
     btn.disabled = false;
   }
 }
 
-/* ═══════════════════════════════════════════════════════════════════
-   INIT
+/* ══════════════════════════════════════════════════════════════════
+   BOOT
 ══════════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
   loadConfig();
   initChart();
-  updateAll();
+  initSliders();
+  initTickerInputs();
+  recomputeAll();
+  renderAll();
 });
 </script>
 
