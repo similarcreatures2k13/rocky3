@@ -992,22 +992,38 @@ document.getElementById('clear-ai').addEventListener('click', () => {
 });
 
 async function consultAuditor() {
-  const apiKey = localStorage.getItem(KS);
+  const apiKey = localStorage.getItem('openrouter_api_key'); // Ensure this matches your KS constant
   if (!apiKey) {
     alert('Configure your OpenRouter API key first (⚙ CONFIG).');
     document.getElementById('config-pane').classList.remove('hidden');
     return;
   }
-  const model = localStorage.getItem(MS) || 'google/gemini-2.5-flash';
+
+  const model = localStorage.getItem('openrouter_model') || 'google/gemini-2.5-flash'; // Ensure this matches your MS constant
   const auditText = document.getElementById('audit-text').textContent;
-  const systemPrompt =
-    "Act as an aggressive, zero-bias institutional risk compliance officer. " +
-    "Cross-examine this micro-cap data block. " +
-    "Evaluate the current portfolio equity framework ($1,000 baseline vs $2,500 options lock floor). " +
-    "Provide a brutal assessment on whether the active survival scores and enterprise valuations " +
-    "justify liquidating a highly volatile crypto token stash to fund this equity allocation. " +
-    "Explicitly state whether to BUY this pair, HOLD dry powder, or EXCHANGE them for " +
-    "alternative high-operating-leverage assets.";
+
+  // ── UPGRADED PROMPT: Clinical, Mathematical, Objective ──
+  const systemPrompt = `
+You are the Rocky3 Quantitative Risk Engine. You are clinical, objective, and strictly mathematical. 
+DO NOT use emotional language, metaphors, judgmental tone, or phrases like "financial lunacy" or "train wreck". 
+Analyze the provided portfolio state and JSON audit manifest. Output a structured report with the following exact headers:
+
+### 1. RISK METRICS
+- **Value at Risk (VaR 95%)**: [Estimate based on provided volatility/convexity]
+- **Expected Shortfall (CVaR)**: [Estimate tail risk based on micro-cap status and gap risk]
+
+### 2. POSITION SIZING (KELLY CRITERION)
+- **Optimal f***: [Calculate fractional Kelly based on implied win rate and payoff ratio from momentum]
+- **Recommended Allocation**: [Actual % to deploy to avoid ruin, considering the $1k baseline and $2.5k options floor goal]
+
+### 3. CONVEXITY & SHOCK ANALYSIS
+- **Dilution Drag**: [Quantify the exact % drag on EPS based on provided dilution flags]
+- **Liquidity Gap Risk**: [Probability of >20% overnight gap based on market cap and volume]
+
+### 4. SYSTEM AUDIT VERDICT
+- **Status**: [APPROVE / REJECT / MODIFY]
+- **Mathematical Rationale**: [2-3 sentences strictly explaining the math behind the verdict, focusing on the path to the $2.5k options floor]
+`;
 
   const wrap = document.getElementById('terminal-wrap');
   const respEl = document.getElementById('ai-response');
@@ -1015,68 +1031,82 @@ async function consultAuditor() {
   const spin = document.getElementById('consult-spin');
   const btn = document.getElementById('consult-btn');
 
-  wrap.style.display = 'block';
-  wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  respEl.textContent = '';
-  respEl.style.color = '#8dd88d';
-  cursor.classList.remove('hidden');
-  spin.classList.remove('hidden');
+  // UI State: Loading
   btn.disabled = true;
-  document.getElementById('model-lbl').textContent = model;
+  btn.innerHTML = '◌ ANALYZING...';
+  spin.classList.remove('hidden');
+  respEl.textContent = '';
+  cursor.classList.remove('hidden');
+  wrap.classList.remove('hidden');
+
+  const messages = [
+    { role: "system", content: systemPrompt },
+    { role: "user", content: `Analyze this live portfolio state and audit manifest:\n\n${auditText}` }
+  ];
 
   try {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
+    const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${localStorage.getItem(KS)}`,
-        'HTTP-Referer': window.location.href,
-        'X-Title': 'Rocky3 Micro-Cap Audit Console',
+        "Authorization": `Bearer ${apiKey}`,
+        "HTTP-Referer": window.location.href,
+        "X-Title": "Rocky3 Audit Console",
+        "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model,
-        stream: true,
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: auditText },
-        ],
-      }),
+        model: model,
+        messages: messages,
+        stream: true
+      })
     });
-    if (!res.ok) {
-      const err = await res.json().catch(() => ({}));
-      throw new Error(`HTTP ${res.status}: ${err.error?.message || res.statusText}`);
+
+    if (!response.ok) {
+      throw new Error(`API Error: ${response.status} ${response.statusText}`);
     }
-    const reader = res.body.getReader();
-    const decoder = new TextDecoder();
-    let full = '';
+
+    const reader = response.body.getReader();
+    const decoder = new TextDecoder("utf-8");
+    let fullText = "";
+
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-      const lines = decoder.decode(value, { stream: true }).split('\n');
+
+      const chunk = decoder.decode(value, { stream: true });
+      const lines = chunk.split("\n");
+
       for (const line of lines) {
-        if (!line.startsWith('data: ')) continue;
-        const chunk = line.slice(6).trim();
-        if (chunk === '[DONE]') continue;
-        try {
-          const delta = JSON.parse(chunk).choices?.[0]?.delta?.content;
-          if (delta) {
-            full += delta;
-            respEl.textContent = full;
-            document.getElementById('ai-scroll').scrollTop = document.getElementById('ai-scroll').scrollHeight;
+        if (line.startsWith("data: ")) {
+          const data = line.slice(6).trim();
+          if (data === "[DONE]") continue;
+
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices?.[0]?.delta?.content || "";
+            if (content) {
+              fullText += content;
+              respEl.textContent = fullText;
+              // Auto-scroll to bottom of terminal
+              wrap.scrollTop = wrap.scrollHeight;
+            }
+          } catch (e) {
+            // Ignore JSON parse errors on incomplete chunks
           }
-        } catch { /* skip malformed SSE chunks */ }
+        }
       }
     }
-  } catch (err) {
-    respEl.textContent = `[SYSTEM ERROR]\n${err.message}`;
-    respEl.style.color = 'var(--red)';
+
+  } catch (error) {
+    respEl.textContent = `❌ ERROR: ${error.message}\n\nCheck your API key and network connection.`;
+    respEl.style.color = "#ff5555";
   } finally {
-    cursor.classList.add('hidden');
-    spin.classList.add('hidden');
+    // UI State: Reset
     btn.disabled = false;
+    btn.innerHTML = '▶ CONSULT SYSTEM AUDITOR';
+    spin.classList.add('hidden');
+    cursor.classList.add('hidden');
   }
 }
-
 /* ══════════════════════════════════════════════════════════════════
    TERMINAL LOGGER
 ══════════════════════════════════════════════════════════════════ */
