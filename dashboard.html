@@ -1,0 +1,988 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta name="theme-color" content="#050505" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <title>Rocky3 · Micro-Cap Audit Console</title>
+
+  <!-- ── CDN Libraries ─────────────────────────────────────────────── -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <!-- ── Tailwind Config ───────────────────────────────────────────── -->
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { mono: ["'JetBrains Mono'", 'Courier New', 'monospace'] },
+        }
+      }
+    }
+  </script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;600;700&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    /* ── Base ─────────────────────────────────────── */
+    :root {
+      --g:     #00ff41;
+      --g2:    #00cc33;
+      --amber: #ffb700;
+      --red:   #ff3333;
+      --blue:  #00b4ff;
+      --card:  #080808;
+      --bg:    #040404;
+      --dim:   #1e3a1e;
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'JetBrains Mono', 'Courier New', monospace;
+      background: var(--bg);
+      color: #a8d8a8;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Subtle CRT scanline overlay */
+    body::after {
+      content: '';
+      position: fixed; inset: 0;
+      background: repeating-linear-gradient(
+        0deg, transparent, transparent 2px,
+        rgba(0,0,0,0.04) 2px, rgba(0,0,0,0.04) 4px
+      );
+      pointer-events: none;
+      z-index: 9000;
+    }
+
+    /* ── Typography ───────────────────────────────── */
+    .label {
+      font-size: 0.6rem; font-weight: 700;
+      letter-spacing: 0.2em; text-transform: uppercase;
+      color: rgba(0,255,65,0.4);
+    }
+    .val { font-size: 0.82rem; font-weight: 700; color: var(--g); }
+    .glow { text-shadow: 0 0 8px currentColor; }
+    .glow-lg { text-shadow: 0 0 14px currentColor, 0 0 28px rgba(0,255,65,0.3); }
+
+    /* ── Cards ────────────────────────────────────── */
+    .card {
+      background: var(--card);
+      border: 1px solid rgba(0,255,65,0.12);
+      border-radius: 3px;
+      padding: 16px;
+      transition: border-color 0.2s;
+    }
+    .card:hover { border-color: rgba(0,255,65,0.28); }
+    .card-warn  { border-color: rgba(255,183,0,0.3) !important; }
+    .card-danger{ border-color: rgba(255,51,51,0.3) !important; }
+
+    /* ── Phase Banner ─────────────────────────────── */
+    .phase-banner {
+      background: repeating-linear-gradient(
+        60deg, rgba(255,183,0,0.04), rgba(255,183,0,0.04) 12px,
+        transparent 12px, transparent 24px
+      );
+      border: 1px solid rgba(255,183,0,0.45);
+      border-radius: 3px;
+      padding: 12px 16px;
+    }
+
+    /* ── Range Sliders ────────────────────────────── */
+    input[type="range"] {
+      -webkit-appearance: none; appearance: none;
+      width: 100%; height: 3px;
+      background: #1a2a1a;
+      border-radius: 2px; outline: none; cursor: pointer;
+    }
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px; height: 18px;
+      background: var(--g); border-radius: 50%;
+      box-shadow: 0 0 10px var(--g);
+      cursor: pointer; transition: box-shadow 0.15s;
+    }
+    input[type="range"]::-webkit-slider-thumb:active {
+      box-shadow: 0 0 18px var(--g), 0 0 32px rgba(0,255,65,0.4);
+    }
+    input[type="range"]::-moz-range-thumb {
+      width: 18px; height: 18px;
+      background: var(--g); border: none; border-radius: 50%;
+      box-shadow: 0 0 10px var(--g); cursor: pointer;
+    }
+    input[type="range"].sl-amber::-webkit-slider-thumb {
+      background: var(--amber); box-shadow: 0 0 10px var(--amber);
+    }
+    input[type="range"].sl-amber::-moz-range-thumb {
+      background: var(--amber); box-shadow: 0 0 10px var(--amber);
+    }
+    input[type="range"].sl-danger::-webkit-slider-thumb {
+      background: var(--red); box-shadow: 0 0 10px var(--red);
+    }
+    input[type="range"].sl-danger::-moz-range-thumb {
+      background: var(--red); box-shadow: 0 0 10px var(--red);
+    }
+
+    /* ── Text Inputs ──────────────────────────────── */
+    .t-input {
+      background: #050505; width: 100%;
+      border: 1px solid rgba(0,255,65,0.25); border-radius: 3px;
+      color: #a8d8a8; font-family: inherit; font-size: 0.82rem;
+      padding: 10px 12px; outline: none; transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .t-input:focus {
+      border-color: rgba(0,255,65,0.65);
+      box-shadow: 0 0 10px rgba(0,255,65,0.15);
+    }
+    .t-input::placeholder { color: #2a4a2a; }
+
+    /* ── Buttons ──────────────────────────────────── */
+    .btn {
+      font-family: inherit; font-size: 0.72rem; font-weight: 700;
+      letter-spacing: 0.1em; text-transform: uppercase;
+      padding: 12px 18px; border-radius: 3px;
+      cursor: pointer; transition: all 0.15s;
+      min-height: 44px; min-width: 44px;
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+    }
+    .btn-g {
+      border: 1px solid rgba(0,255,65,0.4); color: var(--g);
+      background: rgba(0,255,65,0.04);
+    }
+    .btn-g:hover, .btn-g:active {
+      background: rgba(0,255,65,0.10); box-shadow: 0 0 14px rgba(0,255,65,0.25);
+    }
+    .btn-amber {
+      border: 1px solid rgba(255,183,0,0.45); color: var(--amber);
+      background: rgba(255,183,0,0.04);
+    }
+    .btn-amber:hover, .btn-amber:active {
+      background: rgba(255,183,0,0.10); box-shadow: 0 0 14px rgba(255,183,0,0.2);
+    }
+    .btn-red {
+      border: 1px solid rgba(255,51,51,0.4); color: var(--red);
+      background: rgba(255,51,51,0.04);
+    }
+    .btn-red:hover, .btn-red:active {
+      background: rgba(255,51,51,0.10); box-shadow: 0 0 14px rgba(255,51,51,0.2);
+    }
+    .btn-lg { padding: 16px 24px; font-size: 0.82rem; min-height: 52px; }
+
+    /* ── Toggle (dilution) ────────────────────────── */
+    .toggle {
+      font-family: inherit; font-size: 0.68rem; font-weight: 700;
+      letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 8px 14px; border-radius: 3px;
+      cursor: pointer; transition: all 0.15s;
+      min-height: 38px; min-width: 80px;
+      background: transparent; color: #3a5a3a;
+      border: 1px solid rgba(58,90,58,0.5);
+    }
+    .toggle.on {
+      color: var(--red); border-color: rgba(255,51,51,0.55);
+      background: rgba(255,51,51,0.07); box-shadow: 0 0 10px rgba(255,51,51,0.15);
+    }
+
+    /* ── Pre / Audit ──────────────────────────────── */
+    pre {
+      font-family: inherit; font-size: 0.7rem; line-height: 1.65;
+      color: #6aaa6a; white-space: pre; overflow-x: auto;
+      word-break: normal;
+    }
+
+    /* ── AI Terminal ──────────────────────────────── */
+    #ai-response {
+      font-size: 0.78rem; line-height: 1.7;
+      color: #90d890; white-space: pre-wrap; word-break: break-word;
+    }
+
+    /* ── Scrollbar ────────────────────────────────── */
+    ::-webkit-scrollbar { width: 4px; height: 4px; }
+    ::-webkit-scrollbar-track { background: #050505; }
+    ::-webkit-scrollbar-thumb { background: #1a3a1a; border-radius: 2px; }
+
+    /* ── Animations ───────────────────────────────── */
+    @keyframes blink { 50% { opacity: 0; } }
+    .blink { animation: blink 1s step-end infinite; }
+
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+    .fade-in { animation: fadeIn 0.3s ease forwards; }
+
+    @keyframes flash { 0%,100% { background: rgba(0,255,65,0.04); } 50% { background: rgba(0,255,65,0.18); } }
+    .flash { animation: flash 0.5s ease; }
+
+    /* ── Concentration colour helper ─────────────── */
+    .conc-safe   { color: var(--g); }
+    .conc-caution{ color: var(--amber); }
+    .conc-danger { color: var(--red); }
+
+    /* ── Responsive grid ─────────────────────────── */
+    @media (min-width: 640px) {
+      .shock-grid { grid-template-columns: 1fr 1fr; }
+    }
+  </style>
+</head>
+
+<body class="font-mono">
+
+<!-- ═══════════════════════════════════════════════════ HEADER BAR -->
+<header class="sticky top-0 z-50 flex items-center justify-between px-4 py-3"
+        style="background:#040404; border-bottom:1px solid rgba(0,255,65,0.15)">
+  <div>
+    <span class="text-xs font-bold tracking-widest" style="color:var(--g)">ROCKY3</span>
+    <span class="text-xs ml-2" style="color:#3a6a3a">· MICRO-CAP AUDIT CONSOLE</span>
+    <span class="blink ml-1 text-xs" style="color:var(--g)">▮</span>
+  </div>
+  <button id="gear-btn" class="btn btn-g" style="padding:8px 12px;font-size:0.9rem;min-height:38px"
+          title="Configuration" aria-label="Open settings">⚙</button>
+</header>
+
+<!-- ═══════════════════════════════════════════ CONFIG PANE (hidden) -->
+<div id="config-pane" class="hidden fade-in" style="background:#060a06; border-bottom:1px solid rgba(0,255,65,0.18)">
+  <div class="px-4 py-4 max-w-xl mx-auto">
+    <div class="label mb-3">⚙ System Configuration</div>
+    <div class="grid gap-3">
+      <div>
+        <div class="label mb-1">OpenRouter API Key <span style="color:var(--red)">[REQUIRED]</span></div>
+        <!-- type="password" — key never visible on screen -->
+        <input type="password" id="cfg-apikey" class="t-input"
+               placeholder="Enter your OpenRouter API key…"
+               autocomplete="off" autocorrect="off" autocapitalize="none" spellcheck="false" />
+        <div class="label mt-1" style="color:rgba(255,51,51,0.5)">Stored in localStorage only — never sent to any server except OpenRouter at dispatch.</div>
+      </div>
+      <div>
+        <div class="label mb-1">AI Model <span style="color:#3a6a3a">(default: google/gemini-2.5-flash)</span></div>
+        <input type="text" id="cfg-model" class="t-input"
+               placeholder="google/gemini-2.5-flash"
+               autocomplete="off" autocorrect="off" spellcheck="false" />
+      </div>
+      <div class="flex items-center gap-3 flex-wrap">
+        <button id="cfg-save-btn" class="btn btn-g">💾 SAVE CONFIG</button>
+        <button id="cfg-clear-btn" class="btn btn-red" style="font-size:0.65rem">CLEAR KEY</button>
+        <span id="cfg-status" class="text-xs" style="color:var(--g)"></span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════ PORTFOLIO BANNER -->
+<section class="px-4 pt-4">
+  <div class="label mb-2">Portfolio Status</div>
+  <div class="grid gap-3" style="grid-template-columns: repeat(auto-fill, minmax(150px,1fr))">
+    <div class="card">
+      <div class="label">Net Asset Value</div>
+      <div class="text-xl font-bold glow mt-1" style="color:var(--g)">$<span id="nav-val">1,000.00</span></div>
+    </div>
+    <div class="card">
+      <div class="label">Available Cash</div>
+      <div class="text-xl font-bold mt-1" style="color:var(--amber)">$<span id="cash-val">200.00</span></div>
+    </div>
+    <div class="card">
+      <div class="label">Deployed Capital</div>
+      <div class="text-xl font-bold mt-1" style="color:#60a860">$<span id="deployed-val">800.00</span></div>
+    </div>
+    <div class="card">
+      <div class="label">Options Floor</div>
+      <div class="text-xl font-bold mt-1" style="color:#3a6a5a">$2,500.00</div>
+    </div>
+  </div>
+
+  <div class="phase-banner mt-3">
+    <div class="text-xs font-bold" style="color:var(--amber)">
+      ⚠ PHASE 1: OPTIONS TRADING HARD-LOCKED (UNDER $2.5K FLOOR)
+    </div>
+    <div class="text-xs mt-1" style="color:rgba(255,183,0,0.55)">
+      Pure equity execution only · Vertical call debit spreads disabled · Min floor delta: <span id="floor-delta">$1,500.00</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════ SHOCK MATRIX -->
+<section class="px-4 mt-5">
+  <div class="label mb-3">⚡ Shock Matrix Control</div>
+  <div class="grid gap-4 shock-grid">
+
+    <!-- ── INOD ─────────────────────────────────── -->
+    <div class="card" id="card-inod">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <span class="text-sm font-bold glow" style="color:var(--g)">INOD</span>
+          <span class="text-xs ml-2" style="color:#3a6a3a">Innodata Inc · LLM Data Prep</span>
+        </div>
+        <button class="toggle" id="dil-inod" onclick="toggleDilution('inod',this)">⚠ DILUTION</button>
+      </div>
+
+      <div class="grid gap-3">
+        <!-- Share Price -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="label">Share Price</span>
+            <span class="val" id="inod-price-val">$40.00</span>
+          </div>
+          <input type="range" id="inod-price" min="1" max="120" step="0.5" value="40"
+                 oninput="handleSlider('inod','price',this)">
+        </div>
+
+        <!-- Client Concentration -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="label">Client Concentration</span>
+            <span class="val" id="inod-conc-val">32%</span>
+          </div>
+          <input type="range" id="inod-conc" class="sl-amber" min="0" max="100" step="1" value="32"
+                 oninput="handleSlider('inod','concentration',this)">
+          <div class="label mt-1" id="inod-conc-warn"></div>
+        </div>
+
+        <!-- Forward Growth -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="label">Fwd Revenue Growth</span>
+            <span class="val" id="inod-growth-val">40%</span>
+          </div>
+          <input type="range" id="inod-growth" min="0" max="300" step="1" value="40"
+                 oninput="handleSlider('inod','growthPct',this)">
+        </div>
+
+        <!-- Gross Margin -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="label">Gross Margin %</span>
+            <span class="val" id="inod-margin-val">22%</span>
+          </div>
+          <input type="range" id="inod-margin" min="0" max="90" step="1" value="22"
+                 oninput="handleSlider('inod','marginPct',this)">
+        </div>
+
+        <!-- EV -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="label">Enterprise Value ($M)</span>
+            <span class="val" id="inod-ev-val">$600M</span>
+          </div>
+          <input type="range" id="inod-ev" min="10" max="2000" step="10" value="600"
+                 oninput="handleSlider('inod','ev',this)">
+        </div>
+
+        <!-- Cash Ratio -->
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="label">Cash Ratio</span>
+            <span class="val" id="inod-cash-val">0.45</span>
+          </div>
+          <input type="range" id="inod-cashr" min="0.05" max="5" step="0.05" value="0.45"
+                 oninput="handleSlider('inod','cashRatio',this)">
+        </div>
+      </div>
+
+      <div class="mt-3 pt-3" style="border-top:1px solid rgba(0,255,65,0.08)">
+        <div class="flex justify-between">
+          <span class="label">Raw Convexity</span>
+          <span class="text-xs font-bold" id="inod-raw" style="color:#60a060">—</span>
+        </div>
+        <div class="flex justify-between mt-1">
+          <span class="label">Survival Score</span>
+          <span class="text-xs font-bold" id="inod-score" style="color:var(--g)">—</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- ── DUOT ─────────────────────────────────── -->
+    <div class="card" id="card-duot">
+      <div class="flex items-center justify-between mb-3">
+        <div>
+          <span class="text-sm font-bold glow" style="color:var(--blue)">DUOT</span>
+          <span class="text-xs ml-2" style="color:#1a4a6a">Duos Technologies · Edge AI Infra</span>
+        </div>
+        <button class="toggle on" id="dil-duot" onclick="toggleDilution('duot',this)">⚠ DILUTION</button>
+      </div>
+
+      <div class="grid gap-3">
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="label">Share Price</span>
+            <span class="val" id="duot-price-val" style="color:var(--blue)">$9.80</span>
+          </div>
+          <input type="range" id="duot-price" min="0.5" max="50" step="0.1" value="9.8"
+                 oninput="handleSlider('duot','price',this)" style="--g:var(--blue)">
+          <style>#duot-price::-webkit-slider-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}
+                 #duot-price::-moz-range-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}</style>
+        </div>
+
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="label">Client Concentration</span>
+            <span class="val" id="duot-conc-val" style="color:var(--red)">48%</span>
+          </div>
+          <input type="range" id="duot-conc" class="sl-danger" min="0" max="100" step="1" value="48"
+                 oninput="handleSlider('duot','concentration',this)">
+          <div class="label mt-1" id="duot-conc-warn" style="color:var(--red)">⚠ HIGH CONCENTRATION RISK</div>
+        </div>
+
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="label">Fwd Revenue Growth</span>
+            <span class="val" id="duot-growth-val" style="color:var(--blue)">55%</span>
+          </div>
+          <input type="range" id="duot-growth" min="0" max="300" step="1" value="55"
+                 oninput="handleSlider('duot','growthPct',this)">
+          <style>#duot-growth::-webkit-slider-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}
+                 #duot-growth::-moz-range-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}</style>
+        </div>
+
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="label">Gross Margin %</span>
+            <span class="val" id="duot-margin-val" style="color:var(--blue)">35%</span>
+          </div>
+          <input type="range" id="duot-margin" min="0" max="90" step="1" value="35"
+                 oninput="handleSlider('duot','marginPct',this)">
+          <style>#duot-margin::-webkit-slider-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}
+                 #duot-margin::-moz-range-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}</style>
+        </div>
+
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="label">Enterprise Value ($M)</span>
+            <span class="val" id="duot-ev-val" style="color:var(--blue)">$45M</span>
+          </div>
+          <input type="range" id="duot-ev" min="1" max="500" step="1" value="45"
+                 oninput="handleSlider('duot','ev',this)">
+          <style>#duot-ev::-webkit-slider-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}
+                 #duot-ev::-moz-range-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}</style>
+        </div>
+
+        <div>
+          <div class="flex justify-between items-center mb-1">
+            <span class="label">Cash Ratio</span>
+            <span class="val" id="duot-cash-val" style="color:var(--blue)">0.80</span>
+          </div>
+          <input type="range" id="duot-cashr" min="0.05" max="5" step="0.05" value="0.80"
+                 oninput="handleSlider('duot','cashRatio',this)">
+          <style>#duot-cashr::-webkit-slider-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}
+                 #duot-cashr::-moz-range-thumb{background:var(--blue);box-shadow:0 0 10px var(--blue)}</style>
+        </div>
+      </div>
+
+      <div class="mt-3 pt-3" style="border-top:1px solid rgba(0,180,255,0.1)">
+        <div class="flex justify-between">
+          <span class="label">Raw Convexity</span>
+          <span class="text-xs font-bold" id="duot-raw" style="color:#4a90b0">—</span>
+        </div>
+        <div class="flex justify-between mt-1">
+          <span class="label">Survival Score</span>
+          <span class="text-xs font-bold" id="duot-score" style="color:var(--blue)">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════ ANALYTICS CANVAS -->
+<section class="px-4 mt-5">
+  <div class="label mb-3">📊 Survival-Weighted Expectancy Score</div>
+  <div class="card" style="padding:20px">
+    <div class="flex justify-between items-center mb-3 flex-wrap gap-2">
+      <span class="text-xs" style="color:#4a7a4a">
+        Formula: (FwdGrowth% × GrossMargin%) ÷ (EV / CashRatio) × Shock Penalties
+      </span>
+      <div class="flex gap-3 text-xs flex-wrap">
+        <span style="color:var(--g)">■ INOD</span>
+        <span style="color:var(--blue)">■ DUOT</span>
+        <span style="color:rgba(255,183,0,0.7)">■ Raw</span>
+      </div>
+    </div>
+    <div style="height:200px; position:relative">
+      <canvas id="score-chart"></canvas>
+    </div>
+    <div class="flex gap-4 mt-3 text-xs flex-wrap" style="color:#4a7a4a">
+      <span>Concentration penalty: &gt;30% → –1.5%/pt above threshold</span>
+      <span>Dilution penalty: –28% to score</span>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════ AUDIT MANIFEST -->
+<section class="px-4 mt-5">
+  <div class="label mb-3">📋 Audit Manifest</div>
+  <div class="card" style="padding:0">
+    <div class="flex items-center justify-between px-4 py-3" style="border-bottom:1px solid rgba(0,255,65,0.1)">
+      <span class="text-xs font-bold" style="color:var(--g)">SYSTEM PROFILE &amp; RISK SNAPSHOT</span>
+      <div class="flex gap-2">
+        <button id="copy-btn" class="btn btn-g" style="padding:8px 14px;font-size:0.65rem;min-height:36px">
+          ⎘ COPY
+        </button>
+        <span id="copy-ok" class="hidden text-xs font-bold" style="color:var(--g);align-self:center">✓ COPIED</span>
+      </div>
+    </div>
+    <div class="px-4 py-3" style="max-height:320px; overflow-y:auto">
+      <pre id="audit-text">Generating manifest…</pre>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════ CONSULT AUDITOR -->
+<section class="px-4 mt-5">
+  <button id="consult-btn" class="btn btn-amber btn-lg w-full" style="width:100%">
+    <span>▶ CONSULT SYSTEM AUDITOR</span>
+    <span id="consult-status" class="text-xs ml-1"></span>
+  </button>
+  <div class="label mt-2" style="color:rgba(255,183,0,0.35)">
+    Dispatches audit manifest to OpenRouter · Key fetched from memory at exact millisecond of request
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════ AI RESPONSE TERMINAL -->
+<section class="px-4 mt-4 pb-6" id="terminal-section" style="display:none">
+  <div class="label mb-2">⬛ AUDITOR RESPONSE TERMINAL</div>
+  <div class="card card-warn" style="padding:0">
+    <div class="px-4 py-2 flex items-center gap-2" style="border-bottom:1px solid rgba(255,183,0,0.15)">
+      <span class="text-xs" style="color:rgba(255,183,0,0.55)">
+        Model: <span id="model-display">google/gemini-2.5-flash</span>
+      </span>
+      <span id="stream-cursor" class="blink text-xs hidden" style="color:var(--amber)">▮</span>
+    </div>
+    <div class="px-4 py-4" style="min-height:100px; max-height:480px; overflow-y:auto">
+      <div id="ai-response"></div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════ SCRIPT -->
+<script>
+/* ═══════════════════════════════════════════════════════════════════
+   STATE
+══════════════════════════════════════════════════════════════════ */
+const S = {
+  nav:  1000, cash: 200, deployed: 800, optionsFloor: 2500,
+  inod: { price:40,    concentration:32, growthPct:40, marginPct:22, ev:600, cashRatio:0.45, dilution:false },
+  duot: { price:9.80,  concentration:48, growthPct:55, marginPct:35, ev:45,  cashRatio:0.80, dilution:true  },
+};
+
+/* ═══════════════════════════════════════════════════════════════════
+   FORMULA ENGINE
+══════════════════════════════════════════════════════════════════ */
+function rawConvexity(g) {
+  // (Forward Growth% × Gross Margin%) / (EV / Cash Ratio)
+  const denom = g.ev / Math.max(g.cashRatio, 0.01);
+  return denom > 0 ? (g.growthPct * g.marginPct) / denom : 0;
+}
+
+function survivalScore(g) {
+  let s = rawConvexity(g);
+  // Shock penalty — single-customer concentration > 30%
+  if (g.concentration > 30) {
+    const excess   = g.concentration - 30;
+    const penalty  = Math.min(excess * 0.015, 0.50); // max –50%
+    s *= (1 - penalty);
+  }
+  // Shock penalty — active dilution flag
+  if (g.dilution) s *= 0.72;
+  return Math.max(0, s);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   CHART
+══════════════════════════════════════════════════════════════════ */
+let chart = null;
+
+function initChart() {
+  const ctx = document.getElementById('score-chart').getContext('2d');
+  chart = new Chart(ctx, {
+    type: 'bar',
+    data: {
+      labels: ['INOD  (Innodata)', 'DUOT  (Duos Tech)'],
+      datasets: [
+        {
+          label: 'Survival-Weighted Score',
+          data: [0, 0],
+          backgroundColor: ['rgba(0,255,65,0.15)', 'rgba(0,180,255,0.15)'],
+          borderColor:      ['#00ff41', '#00b4ff'],
+          borderWidth: 2,
+        },
+        {
+          label: 'Raw Convexity (pre-penalty)',
+          data: [0, 0],
+          backgroundColor: ['rgba(255,183,0,0.08)', 'rgba(255,183,0,0.08)'],
+          borderColor:      ['rgba(255,183,0,0.5)', 'rgba(255,183,0,0.5)'],
+          borderWidth: 1,
+          borderDash: [4,3],
+        },
+      ],
+    },
+    options: {
+      indexAxis: 'y',
+      responsive: true,
+      maintainAspectRatio: false,
+      animation: { duration: 200 },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0a0a0a',
+          borderColor: 'rgba(0,255,65,0.3)',
+          borderWidth: 1,
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.x.toFixed(4)}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#3a6a3a', font: { family: 'JetBrains Mono', size: 10 } },
+          grid:  { color: 'rgba(0,255,65,0.06)' },
+        },
+        y: {
+          ticks: { color: '#4a8a6a', font: { family: 'JetBrains Mono', size: 11 } },
+          grid:  { color: 'rgba(0,255,65,0.04)' },
+        },
+      },
+    },
+  });
+}
+
+function updateChart() {
+  if (!chart) return;
+  const inodRaw  = rawConvexity(S.inod);
+  const duotRaw  = rawConvexity(S.duot);
+  const inodSurv = survivalScore(S.inod);
+  const duotSurv = survivalScore(S.duot);
+
+  chart.data.datasets[0].data = [inodSurv, duotSurv];
+  chart.data.datasets[1].data = [inodRaw,  duotRaw];
+  chart.update('active');
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   SLIDER HANDLER
+══════════════════════════════════════════════════════════════════ */
+function handleSlider(ticker, field, el) {
+  S[ticker][field] = parseFloat(el.value);
+  updateAll();
+}
+
+function toggleDilution(ticker, btn) {
+  S[ticker].dilution = !S[ticker].dilution;
+  btn.classList.toggle('on', S[ticker].dilution);
+  btn.textContent = S[ticker].dilution ? '⚠ DILUTION' : '⊘ DILUTION';
+  updateAll();
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   UI UPDATE
+══════════════════════════════════════════════════════════════════ */
+function concClass(pct) {
+  return pct > 40 ? 'conc-danger' : pct > 30 ? 'conc-caution' : 'conc-safe';
+}
+
+function updateAll() {
+  const iRaw  = rawConvexity(S.inod);
+  const dRaw  = rawConvexity(S.duot);
+  const iSurv = survivalScore(S.inod);
+  const dSurv = survivalScore(S.duot);
+
+  // ── INOD display
+  setText('inod-price-val',  `$${S.inod.price.toFixed(2)}`);
+  setClassText('inod-conc-val', concClass(S.inod.concentration), `${S.inod.concentration}%`);
+  setText('inod-growth-val', `${S.inod.growthPct}%`);
+  setText('inod-margin-val', `${S.inod.marginPct}%`);
+  setText('inod-ev-val',     `$${S.inod.ev}M`);
+  setText('inod-cash-val',   S.inod.cashRatio.toFixed(2));
+  setText('inod-raw',        iRaw.toFixed(4));
+  setText('inod-score',      iSurv.toFixed(4));
+  setText('inod-conc-warn',
+    S.inod.concentration > 40 ? '⚠ CRITICAL: EXTREME CONCENTRATION' :
+    S.inod.concentration > 30 ? '⚠ SHOCK PENALTY ACTIVE' : '');
+
+  // ── DUOT display
+  setText('duot-price-val',  `$${S.duot.price.toFixed(2)}`);
+  setClassText('duot-conc-val', concClass(S.duot.concentration), `${S.duot.concentration}%`);
+  setText('duot-growth-val', `${S.duot.growthPct}%`);
+  setText('duot-margin-val', `${S.duot.marginPct}%`);
+  setText('duot-ev-val',     `$${S.duot.ev}M`);
+  setText('duot-cash-val',   S.duot.cashRatio.toFixed(2));
+  setText('duot-raw',        dRaw.toFixed(4));
+  setText('duot-score',      dSurv.toFixed(4));
+  setText('duot-conc-warn',
+    S.duot.concentration > 40 ? '⚠ CRITICAL: EXTREME CONCENTRATION' :
+    S.duot.concentration > 30 ? '⚠ SHOCK PENALTY ACTIVE' : '');
+
+  // Card border flash on danger
+  document.getElementById('card-inod').className =
+    `card${S.inod.concentration > 40 ? ' card-danger' : S.inod.concentration > 30 ? ' card-warn' : ''}`;
+  document.getElementById('card-duot').className =
+    `card${S.duot.concentration > 40 ? ' card-danger' : S.duot.concentration > 30 ? ' card-warn' : ''}`;
+
+  // Phase delta
+  setText('floor-delta', `$${(S.optionsFloor - S.nav).toFixed(2)}`);
+
+  updateChart();
+  generateAudit(iRaw, dRaw, iSurv, dSurv);
+}
+
+function setText(id, v)            { const el = document.getElementById(id); if(el) el.textContent = v; }
+function setClassText(id, cls, v)  { const el = document.getElementById(id); if(el){ el.className = `val ${cls}`; el.textContent = v; } }
+
+/* ═══════════════════════════════════════════════════════════════════
+   AUDIT MANIFEST GENERATOR
+══════════════════════════════════════════════════════════════════ */
+function generateAudit(iRaw, dRaw, iSurv, dSurv) {
+  const manifest = {
+    generated_utc: new Date().toISOString(),
+    system_version: "rocky3-audit-v3",
+    portfolio: {
+      account_equity_usd:   S.nav,
+      available_cash_usd:   S.cash,
+      deployed_capital_usd: S.deployed,
+      options_unlock_floor_usd: S.optionsFloor,
+      phase_status: "PHASE_1_OPTIONS_HARD_LOCKED",
+      floor_deficit_usd: +(S.optionsFloor - S.nav).toFixed(2),
+    },
+    assets: {
+      INOD: {
+        name: "Innodata Inc",
+        layer: "L1_DATA_ENGINEERING",
+        share_price_usd:     S.inod.price,
+        client_concentration_pct: S.inod.concentration,
+        forward_revenue_growth_pct: S.inod.growthPct,
+        gross_margin_pct:    S.inod.marginPct,
+        enterprise_value_M:  S.inod.ev,
+        cash_ratio:          S.inod.cashRatio,
+        dilution_flag_active: S.inod.dilution,
+        raw_convexity_score: +iRaw.toFixed(6),
+        survival_score:      +iSurv.toFixed(6),
+        shock_penalties: {
+          concentration_penalty_active: S.inod.concentration > 30,
+          dilution_penalty_active:      S.inod.dilution,
+          effective_multiplier: +(iSurv / Math.max(iRaw, 1e-9)).toFixed(4),
+        },
+      },
+      DUOT: {
+        name: "Duos Technologies Group",
+        layer: "L1_EDGE_AI_INFRA",
+        share_price_usd:     S.duot.price,
+        client_concentration_pct: S.duot.concentration,
+        forward_revenue_growth_pct: S.duot.growthPct,
+        gross_margin_pct:    S.duot.marginPct,
+        enterprise_value_M:  S.duot.ev,
+        cash_ratio:          S.duot.cashRatio,
+        dilution_flag_active: S.duot.dilution,
+        raw_convexity_score: +dRaw.toFixed(6),
+        survival_score:      +dSurv.toFixed(6),
+        shock_penalties: {
+          concentration_penalty_active: S.duot.concentration > 30,
+          dilution_penalty_active:      S.duot.dilution,
+          effective_multiplier: +(dSurv / Math.max(dRaw, 1e-9)).toFixed(4),
+        },
+      },
+    },
+    risk_flags: [
+      ...(S.inod.concentration > 30  ? [`INOD: Single-customer concentration ${S.inod.concentration}% exceeds 30% threshold`] : []),
+      ...(S.duot.concentration > 30  ? [`DUOT: Single-customer concentration ${S.duot.concentration}% exceeds 30% threshold`] : []),
+      ...(S.inod.dilution             ? ['INOD: Active share dilution flag — EPS compression risk'] : []),
+      ...(S.duot.dilution             ? ['DUOT: Active share dilution flag — EPS compression risk'] : []),
+      ...(S.nav < S.optionsFloor      ? [`NAV $${S.nav} below $${S.optionsFloor} options floor — equity-only execution`] : []),
+      ...(S.duot.concentration > 40   ? ['DUOT: CRITICAL concentration >40% — binary single-event failure risk'] : []),
+    ],
+    formula_used: "(ForwardGrowth% × GrossMargin%) / (EV_millions / CashRatio)",
+    penalty_rules: {
+      concentration: "score × (1 - min((conc% - 30) × 0.015, 0.50)) if conc% > 30%",
+      dilution:      "score × 0.72 if dilution_flag = true",
+    },
+  };
+
+  document.getElementById('audit-text').textContent = JSON.stringify(manifest, null, 2);
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   COPY BUTTON
+══════════════════════════════════════════════════════════════════ */
+document.getElementById('copy-btn').addEventListener('click', async () => {
+  const text = document.getElementById('audit-text').textContent;
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch {
+    // Fallback for older mobile browsers
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed'; ta.style.opacity = '0';
+    document.body.appendChild(ta);
+    ta.select(); document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+  const ok = document.getElementById('copy-ok');
+  const btn = document.getElementById('copy-btn');
+  ok.classList.remove('hidden');
+  btn.classList.add('flash');
+  setTimeout(() => { ok.classList.add('hidden'); btn.classList.remove('flash'); }, 1800);
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   CONFIG — API KEY (localStorage only, never hardcoded)
+══════════════════════════════════════════════════════════════════ */
+const KEY_STORE  = 'rocky3_api_key';
+const MDL_STORE  = 'rocky3_model';
+
+function loadConfig() {
+  const savedKey   = localStorage.getItem(KEY_STORE);
+  const savedModel = localStorage.getItem(MDL_STORE) || 'google/gemini-2.5-flash';
+
+  // Show masked indicator if key exists (do NOT populate password field)
+  if (savedKey) {
+    document.getElementById('cfg-apikey').placeholder =
+      `●●●● key saved (${savedKey.length} chars) — enter new key to replace`;
+  }
+  document.getElementById('cfg-model').value = savedModel;
+  setText('model-display', savedModel);
+}
+
+document.getElementById('gear-btn').addEventListener('click', () => {
+  const pane = document.getElementById('config-pane');
+  pane.classList.toggle('hidden');
+  if (!pane.classList.contains('hidden')) pane.classList.add('fade-in');
+});
+
+document.getElementById('cfg-save-btn').addEventListener('click', () => {
+  const keyEl   = document.getElementById('cfg-apikey');
+  const modelEl = document.getElementById('cfg-model');
+  const status  = document.getElementById('cfg-status');
+  const newKey  = keyEl.value.trim();
+  const newModel= modelEl.value.trim() || 'google/gemini-2.5-flash';
+
+  if (newKey) localStorage.setItem(KEY_STORE, newKey);
+  localStorage.setItem(MDL_STORE, newModel);
+
+  keyEl.value = '';
+  keyEl.placeholder = `●●●● key saved — enter new key to replace`;
+  setText('model-display', newModel);
+  status.textContent = '✓ Saved to localStorage';
+  status.style.color = 'var(--g)';
+  setTimeout(() => { status.textContent = ''; }, 2000);
+});
+
+document.getElementById('cfg-clear-btn').addEventListener('click', () => {
+  localStorage.removeItem(KEY_STORE);
+  document.getElementById('cfg-apikey').placeholder =
+    'Enter your OpenRouter API key…';
+  const status = document.getElementById('cfg-status');
+  status.textContent = '⚠ Key cleared';
+  status.style.color = 'var(--red)';
+  setTimeout(() => { status.textContent = ''; }, 2000);
+});
+
+/* ═══════════════════════════════════════════════════════════════════
+   OPENROUTER INTELLIGENCE LAYER
+══════════════════════════════════════════════════════════════════ */
+document.getElementById('consult-btn').addEventListener('click', consultAuditor);
+
+async function consultAuditor() {
+  // ── Key fetched from localStorage at the exact millisecond of dispatch ──
+  const apiKey = localStorage.getItem(KEY_STORE);
+  if (!apiKey) {
+    alert('No API key found.\nOpen ⚙ settings and save your OpenRouter key first.');
+    document.getElementById('config-pane').classList.remove('hidden');
+    return;
+  }
+
+  const model       = localStorage.getItem(MDL_STORE) || 'google/gemini-2.5-flash';
+  const auditText   = document.getElementById('audit-text').textContent;
+  const systemPrompt =
+    "Act as an aggressive, zero-bias financial risk compliance officer. " +
+    "Cross-examine this data block. Tell me if the numbers justify liquidating " +
+    "a highly volatile crypto token stash to fund this position. Be blunt.";
+
+  // ── Show terminal section ──
+  const section  = document.getElementById('terminal-section');
+  const respEl   = document.getElementById('ai-response');
+  const cursor   = document.getElementById('stream-cursor');
+  const statusEl = document.getElementById('consult-status');
+  const btn      = document.getElementById('consult-btn');
+
+  section.style.display  = 'block';
+  section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  respEl.textContent     = '';
+  cursor.classList.remove('hidden');
+  btn.disabled           = true;
+  statusEl.textContent   = '· connecting…';
+  setText('model-display', model);
+
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method:  'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        // ── Key read from memory at dispatch time — never hardcoded ──
+        'Authorization': `Bearer ${localStorage.getItem(KEY_STORE)}`,
+        'HTTP-Referer':  window.location.href,
+        'X-Title':       'Rocky3 Micro-Cap Audit Console',
+      },
+      body: JSON.stringify({
+        model,
+        stream: true,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user',   content: auditText },
+        ],
+      }),
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(`HTTP ${res.status}: ${err.error?.message || res.statusText}`);
+    }
+
+    // ── Stream SSE response ──
+    const reader  = res.body.getReader();
+    const decoder = new TextDecoder();
+    let   full    = '';
+    statusEl.textContent = '· streaming…';
+
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+
+      const lines = decoder.decode(value, { stream: true }).split('\n');
+      for (const line of lines) {
+        if (!line.startsWith('data: ')) continue;
+        const chunk = line.slice(6).trim();
+        if (chunk === '[DONE]') continue;
+        try {
+          const delta = JSON.parse(chunk).choices?.[0]?.delta?.content;
+          if (delta) { full += delta; respEl.textContent = full; }
+        } catch { /* skip malformed chunks */ }
+      }
+      // Keep terminal scrolled to bottom during stream
+      respEl.parentElement.scrollTop = respEl.parentElement.scrollHeight;
+    }
+
+    statusEl.textContent = '· complete';
+    setTimeout(() => { statusEl.textContent = ''; }, 3000);
+
+  } catch (err) {
+    respEl.textContent = `[ERROR] ${err.message}`;
+    respEl.style.color = 'var(--red)';
+    statusEl.textContent = '· failed';
+  } finally {
+    cursor.classList.add('hidden');
+    btn.disabled = false;
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════
+   INIT
+══════════════════════════════════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', () => {
+  loadConfig();
+  initChart();
+  updateAll();
+});
+</script>
+
+</body>
+</html>
