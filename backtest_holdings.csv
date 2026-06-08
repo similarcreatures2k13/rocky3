@@ -1,0 +1,5 @@
+Ticker,Layer,Description,R1(50%) ×,R2(30%) ×,R3(20%) ×,Stops,Days Held,Peak Pos ($),P&L Contrib.
+INOD,L1 Data Engineering,LLM Training Data Prep (Innodata),5,4,1,9,156,566,+16.0%
+DUOT,L1 Edge AI Infra,Modular Edge AI Data Centers (Duos Tech),3,4,1,7,127,498,-8.9%
+BABA,L2 AI Cloud,Discounted AI Cloud Infrastructure (Alibaba),2,2,2,5,210,401,-8.3%
+AI,L3 Enterprise AI,Enterprise AI Application Layer (C3.ai),1,1,2,4,83,554,-4.2%
