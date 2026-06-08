@@ -1,0 +1,817 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Rocky3 — AI Bottleneck Portfolio Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/papaparse@5.4.1/papaparse.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #060b18;
+      --card:     #0d1425;
+      --card2:    #111e35;
+      --border:   #1e2d4a;
+      --accent:   #4f8ef7;
+      --accent2:  #7c3aed;
+      --green:    #10d98c;
+      --red:      #f05050;
+      --yellow:   #f5a623;
+      --text:     #e2e8f0;
+      --muted:    #64748b;
+      --spy:      #facc15;
+      --qqq:      #34d399;
+      --opts:     #a78bfa;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+      min-height: 100vh;
+      padding: 0 0 60px;
+    }
+
+    /* ── HEADER ─────────────────────────────────────────────────────── */
+    header {
+      background: linear-gradient(135deg, #0a1628 0%, #0d1e3d 50%, #0a1628 100%);
+      border-bottom: 1px solid var(--border);
+      padding: 28px 32px 24px;
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+    .header-left h1 {
+      font-size: 1.6rem;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      background: linear-gradient(90deg, #4f8ef7, #a78bfa);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .header-left .subtitle {
+      color: var(--muted);
+      font-size: 0.82rem;
+      margin-top: 4px;
+    }
+    .header-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(79,142,247,0.1);
+      border: 1px solid rgba(79,142,247,0.3);
+      border-radius: 20px;
+      padding: 4px 12px;
+      font-size: 0.75rem;
+      color: var(--accent);
+      font-weight: 600;
+    }
+    .header-right {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-end;
+      gap: 6px;
+    }
+    .updated-tag {
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+
+    /* ── LAYOUT ─────────────────────────────────────────────────────── */
+    .container { max-width: 1280px; margin: 0 auto; padding: 0 24px; }
+
+    section { margin-top: 28px; }
+    .section-title {
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    /* ── KPI CARDS ──────────────────────────────────────────────────── */
+    .kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .kpi-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      position: relative;
+      overflow: hidden;
+    }
+    .kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: var(--accent);
+    }
+    .kpi-card.positive::before { background: var(--green); }
+    .kpi-card.negative::before { background: var(--red); }
+    .kpi-card.neutral::before  { background: var(--yellow); }
+    .kpi-label {
+      font-size: 0.68rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      font-weight: 600;
+    }
+    .kpi-value {
+      font-size: 1.55rem;
+      font-weight: 700;
+      margin-top: 4px;
+      line-height: 1;
+    }
+    .kpi-value.up   { color: var(--green); }
+    .kpi-value.down { color: var(--red); }
+    .kpi-value.flat { color: var(--yellow); }
+    .kpi-sub {
+      font-size: 0.7rem;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+
+    /* ── CHART CARD ─────────────────────────────────────────────────── */
+    .chart-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+    }
+    .chart-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .chart-title { font-size: 0.9rem; font-weight: 600; }
+    .legend-wrap {
+      display: flex;
+      gap: 16px;
+      flex-wrap: wrap;
+    }
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 0.75rem;
+      color: var(--muted);
+    }
+    .legend-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .chart-wrap { position: relative; height: 300px; }
+
+    /* ── TWO-COL GRID ───────────────────────────────────────────────── */
+    .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+    @media (max-width: 768px) { .two-col { grid-template-columns: 1fr; } }
+
+    /* ── TABLE CARD ─────────────────────────────────────────────────── */
+    .table-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    .table-card-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .table-card-header .count-badge {
+      font-size: 0.7rem;
+      background: rgba(79,142,247,0.12);
+      color: var(--accent);
+      padding: 2px 8px;
+      border-radius: 10px;
+      font-weight: 600;
+    }
+    .table-wrap { overflow-x: auto; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.78rem;
+    }
+    thead th {
+      background: rgba(255,255,255,0.03);
+      color: var(--muted);
+      font-weight: 700;
+      font-size: 0.65rem;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      padding: 10px 14px;
+      text-align: left;
+      white-space: nowrap;
+    }
+    tbody tr {
+      border-top: 1px solid rgba(30,45,74,0.6);
+      transition: background 0.15s;
+    }
+    tbody tr:hover { background: rgba(79,142,247,0.05); }
+    tbody td {
+      padding: 10px 14px;
+      white-space: nowrap;
+    }
+    td.pos  { color: var(--green); font-weight: 600; }
+    td.neg  { color: var(--red);   font-weight: 600; }
+    td.flat { color: var(--yellow); }
+    td.dim  { color: var(--muted); font-size: 0.72rem; }
+
+    /* series row colours */
+    tr.row-portfolio td:first-child { color: var(--accent); font-weight: 700; }
+    tr.row-spy  td:first-child { color: var(--spy); font-weight: 600; }
+    tr.row-qqq  td:first-child { color: var(--qqq); font-weight: 600; }
+    tr.row-opts td:first-child { color: var(--opts); }
+
+    /* ── ALLOCATION LOG ─────────────────────────────────────────────── */
+    .rank-chip {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+    }
+    .rank-1 { background: rgba(245,166,35,0.15); color: var(--yellow); border: 1px solid rgba(245,166,35,0.3); }
+    .rank-2 { background: rgba(79,142,247,0.12); color: var(--accent);  border: 1px solid rgba(79,142,247,0.25); }
+    .rank-3 { background: rgba(100,116,139,0.15); color: var(--muted);  border: 1px solid rgba(100,116,139,0.25); }
+    .ticker-chip {
+      display: inline-block;
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      background: rgba(79,142,247,0.1);
+      color: var(--accent);
+      margin: 1px;
+    }
+    .deployed-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .bar-bg {
+      background: var(--border);
+      border-radius: 3px;
+      height: 5px;
+      width: 54px;
+      overflow: hidden;
+    }
+    .bar-fill {
+      height: 100%;
+      border-radius: 3px;
+      background: var(--green);
+    }
+    .bar-fill.partial { background: var(--yellow); }
+    .bar-fill.zero    { background: var(--red); }
+
+    /* ── STOP EVENTS ────────────────────────────────────────────────── */
+    .stop-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+      gap: 8px;
+    }
+    .stop-card {
+      background: rgba(240,80,80,0.05);
+      border: 1px solid rgba(240,80,80,0.18);
+      border-left: 3px solid var(--red);
+      border-radius: 8px;
+      padding: 10px 14px;
+    }
+    .stop-card .stop-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .stop-ticker { font-weight: 700; color: var(--red); font-size: 0.85rem; }
+    .stop-date   { font-size: 0.7rem; color: var(--muted); }
+    .stop-detail { font-size: 0.72rem; color: var(--muted); margin-top: 4px; }
+    .stop-dd     { color: var(--red); font-weight: 600; }
+
+    /* ── FRAMEWORK BADGES ───────────────────────────────────────────── */
+    .framework-strip {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-bottom: 4px;
+    }
+    .fw-badge {
+      background: var(--card2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 8px 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .fw-icon { font-size: 1.1rem; }
+    .fw-text { font-size: 0.75rem; }
+    .fw-text strong { display: block; color: var(--text); font-size: 0.78rem; }
+    .fw-text span   { color: var(--muted); font-size: 0.68rem; }
+
+    /* ── LOADER ─────────────────────────────────────────────────────── */
+    .loader {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 120px;
+      color: var(--muted);
+      font-size: 0.8rem;
+      gap: 8px;
+    }
+    .spinner {
+      width: 18px; height: 18px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── FOOTER ─────────────────────────────────────────────────────── */
+    footer {
+      margin-top: 48px;
+      border-top: 1px solid var(--border);
+      padding: 20px 32px;
+      text-align: center;
+      font-size: 0.72rem;
+      color: var(--muted);
+    }
+  </style>
+</head>
+<body>
+
+<!-- ═══════════════════════════════════════════════════════════════════ HEADER -->
+<header>
+  <div class="header-left">
+    <h1>Rocky3 &mdash; AI Bottleneck Portfolio</h1>
+    <div class="subtitle">
+      Dynamic Capital Layering &nbsp;·&nbsp; 200-day MA Filter &nbsp;·&nbsp; 50/30/20 Momentum Weights &nbsp;·&nbsp; 20% Trailing Stop
+    </div>
+  </div>
+  <div class="header-right">
+    <span class="header-badge">&#9679; Live Backtest Data</span>
+    <span class="updated-tag" id="updated-tag">Loading data…</span>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- ═══════════════════════════════ FRAMEWORK STRIP -->
+  <section>
+    <div class="section-title">Framework</div>
+    <div class="framework-strip">
+      <div class="fw-badge">
+        <span class="fw-icon">📊</span>
+        <div class="fw-text"><strong>200-day MA Filter</strong><span>Cash reservation rule — below MA = out</span></div>
+      </div>
+      <div class="fw-badge">
+        <span class="fw-icon">⚡</span>
+        <div class="fw-text"><strong>63-day Momentum Rank</strong><span>No profit-cutting to fund laggards</span></div>
+      </div>
+      <div class="fw-badge">
+        <span class="fw-icon">⚖️</span>
+        <div class="fw-text"><strong>50 / 30 / 20 Weights</strong><span>Top 3 survivors only</span></div>
+      </div>
+      <div class="fw-badge">
+        <span class="fw-icon">🛡️</span>
+        <div class="fw-text"><strong>20% Trailing Stop</strong><span>Per-position HWM defense</span></div>
+      </div>
+      <div class="fw-badge">
+        <span class="fw-icon">💰</span>
+        <div class="fw-text"><strong>$1,000 Capital Base</strong><span>4-ticker AI infra basket</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ KPI STRIP -->
+  <section>
+    <div class="section-title">Portfolio Snapshot</div>
+    <div class="kpi-grid" id="kpi-grid">
+      <div class="loader"><div class="spinner"></div> Loading…</div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ EQUITY CURVE -->
+  <section>
+    <div class="section-title">Equity Curve (Normalised to 100)</div>
+    <div class="chart-card">
+      <div class="chart-header">
+        <span class="chart-title">Portfolio NAV vs Benchmarks</span>
+        <div class="legend-wrap">
+          <div class="legend-item"><div class="legend-dot" style="background:#4f8ef7"></div>Dynamic Layering</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#facc15"></div>SPY</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#34d399"></div>QQQ</div>
+        </div>
+      </div>
+      <div class="chart-wrap">
+        <canvas id="navChart"></canvas>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ METRICS + HOLDINGS -->
+  <section>
+    <div class="section-title">Performance &amp; Attribution</div>
+    <div class="two-col">
+
+      <!-- Metrics table -->
+      <div class="table-card">
+        <div class="table-card-header">
+          Performance Metrics
+          <span class="count-badge">4 series</span>
+        </div>
+        <div class="table-wrap" id="metrics-wrap">
+          <div class="loader"><div class="spinner"></div> Loading…</div>
+        </div>
+      </div>
+
+      <!-- Holdings / attribution table -->
+      <div class="table-card">
+        <div class="table-card-header">
+          Per-Ticker Rotation Attribution
+          <span class="count-badge">equity path</span>
+        </div>
+        <div class="table-wrap" id="holdings-wrap">
+          <div class="loader"><div class="spinner"></div> Loading…</div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ ALLOCATION LOG -->
+  <section>
+    <div class="section-title">Quarterly Allocation Log</div>
+    <div class="table-card">
+      <div class="table-card-header">
+        Rebalance Decisions &amp; Momentum Scores
+        <span class="count-badge" id="rebal-count">—</span>
+      </div>
+      <div class="table-wrap" id="alloc-wrap">
+        <div class="loader"><div class="spinner"></div> Loading…</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ═══════════════════════════════ STOP EVENTS -->
+  <section>
+    <div class="section-title">Trailing Stop Events</div>
+    <div class="stop-grid" id="stops-grid">
+      <div class="loader"><div class="spinner"></div> Loading…</div>
+    </div>
+  </section>
+
+</div><!-- /container -->
+
+<footer>
+  Rocky3 &nbsp;·&nbsp; AI Infrastructure Bottleneck Portfolio &nbsp;·&nbsp;
+  Data refreshed from <code>backtest_*.csv</code> on every page load &nbsp;·&nbsp;
+  <a href="https://github.com/similarcreatures2k13/rocky3" style="color:var(--accent);text-decoration:none;">
+    github.com/similarcreatures2k13/rocky3
+  </a>
+</footer>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════════════
+   HELPERS
+══════════════════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const colClass = v => {
+  if (v === undefined || v === null || v === '—') return '';
+  const s = String(v).replace(/[,$%]/g, '');
+  const n = parseFloat(s);
+  if (isNaN(n)) return '';
+  return n > 0 ? 'pos' : n < 0 ? 'neg' : '';
+};
+const metricColor = (label, val) => {
+  const neg = ['Max DD','Ann. Vol'].includes(label);
+  const c = colClass(val);
+  return neg ? (c === 'pos' ? 'neg' : c === 'neg' ? 'pos' : '') : c;
+};
+
+async function fetchCSV(url) {
+  return new Promise((resolve, reject) => {
+    Papa.parse(url, {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: r => resolve(r.data),
+      error:    e => reject(e),
+    });
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   LOAD ALL DATA
+══════════════════════════════════════════════════════════════════════ */
+(async () => {
+  try {
+    const [daily, metrics, holdings, alloc] = await Promise.all([
+      fetchCSV('./backtest_daily.csv'),
+      fetchCSV('./backtest_metrics.csv'),
+      fetchCSV('./backtest_holdings.csv'),
+      fetchCSV('./backtest_allocations.csv'),
+    ]);
+
+    const lastDay   = daily[daily.length - 1];
+    const firstDay  = daily[0];
+    const portRow   = metrics.find(r => r.Series && r.Series.includes('Dynamic'));
+    const spyRow    = metrics.find(r => r.Series && r.Series.includes('SPY'));
+    const rebalRows = alloc.filter(r => r.Event === 'REBALANCE');
+    const stopRows  = alloc.filter(r => r.Event && r.Event.startsWith('TRAILING'));
+
+    $('updated-tag').textContent = `Period: ${firstDay.Date} → ${lastDay.Date}`;
+
+    renderKPIs(portRow, spyRow, rebalRows.length, stopRows.length);
+    renderChart(daily);
+    renderMetrics(metrics);
+    renderHoldings(holdings);
+    renderAllocLog(rebalRows);
+    renderStops(stopRows);
+  } catch(e) {
+    console.error(e);
+    document.body.innerHTML += `<div style="color:red;padding:20px">Error loading CSV data: ${e.message}</div>`;
+  }
+})();
+
+/* ═══════════════════════════════════════════════════════════════════════
+   KPIs
+══════════════════════════════════════════════════════════════════════ */
+function renderKPIs(port, spy, rebalN, stopN) {
+  const navEnd = parseFloat((port?.['End ($)'] || '0').replace(/,/g,''));
+  const totalRet = port?.['Total Return'] || '—';
+  const sharpe   = port?.['Sharpe'] || '—';
+  const maxdd    = port?.['Max DD'] || '—';
+  const cagr     = port?.['CAGR'] || '—';
+  const vol      = port?.['Ann. Vol'] || '—';
+  const spyRet   = spy?.['Total Return'] || '—';
+
+  const retNum = parseFloat(totalRet);
+  const retClass = retNum > 0 ? 'up' : retNum < 0 ? 'down' : 'flat';
+  const navClass  = navEnd > 1000 ? 'up' : navEnd < 1000 ? 'down' : 'flat';
+
+  const cards = [
+    { label:'End NAV',       value:`$${navEnd.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}`,   cls: navClass,  sub: 'from $1,000.00',    bar:false, cardClass: retNum>=0?'positive':'negative' },
+    { label:'Total Return',  value: totalRet,  cls: retClass,  sub: `vs SPY ${spyRet}`,    bar:false, cardClass: retNum>=0?'positive':'negative' },
+    { label:'CAGR',          value: cagr,      cls: parseFloat(cagr)>=0?'up':'down', sub:'annualised', bar:false, cardClass:'neutral' },
+    { label:'Sharpe Ratio',  value: sharpe,    cls: parseFloat(sharpe)>=0?'up':'down', sub:'risk-adjusted', bar:false, cardClass:'neutral' },
+    { label:'Max Drawdown',  value: maxdd,     cls:'down',     sub:'worst peak→trough',  bar:false, cardClass:'negative' },
+    { label:'Ann. Volatility',value: vol,      cls:'flat',     sub:'daily returns ×√252', bar:false,cardClass:'neutral' },
+    { label:'Rebalances',    value: rebalN,    cls:'flat',     sub:'quarterly decisions', bar:false, cardClass:'neutral' },
+    { label:'Stop Triggers', value: stopN,     cls:'flat',     sub:'20% trailing stop',   bar:false, cardClass: stopN>20?'negative':'neutral' },
+  ];
+
+  $('kpi-grid').innerHTML = cards.map(c => `
+    <div class="kpi-card ${c.cardClass}">
+      <div class="kpi-label">${c.label}</div>
+      <div class="kpi-value ${c.cls}">${c.value}</div>
+      <div class="kpi-sub">${c.sub}</div>
+    </div>`).join('');
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   EQUITY CURVE CHART
+══════════════════════════════════════════════════════════════════════ */
+function renderChart(daily) {
+  // Sample every 5th row for performance (still ~250 points)
+  const step = Math.max(1, Math.floor(daily.length / 300));
+  const sampled = daily.filter((_, i) => i % step === 0 || i === daily.length - 1);
+
+  const base_p = parseFloat(sampled[0].equity_nav);
+  const base_s = parseFloat(sampled[0].SPY_nav);
+  const base_q = parseFloat(sampled[0].QQQ_nav);
+
+  const labels  = sampled.map(r => r.Date);
+  const portNav = sampled.map(r => ((parseFloat(r.equity_nav) / base_p) * 100).toFixed(2));
+  const spyNav  = sampled.map(r => ((parseFloat(r.SPY_nav)    / base_s) * 100).toFixed(2));
+  const qqqNav  = sampled.map(r => ((parseFloat(r.QQQ_nav)    / base_q) * 100).toFixed(2));
+
+  new Chart($('navChart'), {
+    type: 'line',
+    data: {
+      labels,
+      datasets: [
+        {
+          label: 'Dynamic Layering',
+          data: portNav,
+          borderColor: '#4f8ef7',
+          backgroundColor: 'rgba(79,142,247,0.06)',
+          borderWidth: 2,
+          pointRadius: 0,
+          fill: true,
+          tension: 0.3,
+        },
+        {
+          label: 'SPY',
+          data: spyNav,
+          borderColor: '#facc15',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          borderDash: [4, 3],
+          fill: false,
+          tension: 0.3,
+        },
+        {
+          label: 'QQQ',
+          data: qqqNav,
+          borderColor: '#34d399',
+          borderWidth: 1.5,
+          pointRadius: 0,
+          borderDash: [2, 3],
+          fill: false,
+          tension: 0.3,
+        },
+      ],
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#0d1425',
+          borderColor: '#1e2d4a',
+          borderWidth: 1,
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y}`,
+          },
+        },
+      },
+      scales: {
+        x: {
+          ticks: { color: '#4b5e7a', maxTicksLimit: 8, font: { size: 10 } },
+          grid:  { color: 'rgba(30,45,74,0.4)' },
+        },
+        y: {
+          ticks: { color: '#4b5e7a', font: { size: 10 }, callback: v => v },
+          grid:  { color: 'rgba(30,45,74,0.4)' },
+        },
+      },
+    },
+  });
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   METRICS TABLE
+══════════════════════════════════════════════════════════════════════ */
+function renderMetrics(rows) {
+  const cols = ['Series','Start ($)','End ($)','Total Return','CAGR','Ann. Vol','Sharpe','Sortino','Max DD','Calmar'];
+  const rowClass = r => {
+    if (r.Series?.includes('Dynamic'))  return 'row-portfolio';
+    if (r.Series?.includes('SPY'))      return 'row-spy';
+    if (r.Series?.includes('QQQ'))      return 'row-qqq';
+    if (r.Series?.includes('Options'))  return 'row-opts';
+    return '';
+  };
+  const html = `
+    <table>
+      <thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+      <tbody>
+        ${rows.map(r => `<tr class="${rowClass(r)}">${cols.map(c => {
+          const v = r[c] ?? '—';
+          const cls = c === 'Series' ? '' : metricColor(c, v);
+          return `<td class="${cls}">${v}</td>`;
+        }).join('')}</tr>`).join('')}
+      </tbody>
+    </table>`;
+  $('metrics-wrap').innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   HOLDINGS / ATTRIBUTION TABLE
+══════════════════════════════════════════════════════════════════════ */
+function renderHoldings(rows) {
+  const cols = ['Ticker','Layer','R1(50%) ×','R2(30%) ×','R3(20%) ×','Stops','Days Held','Peak Pos ($)','P&L Contrib.'];
+  const html = `
+    <table>
+      <thead><tr>${cols.map(c=>`<th>${c}</th>`).join('')}</tr></thead>
+      <tbody>
+        ${rows.map(r => `<tr>
+          <td style="font-weight:700;color:var(--accent)">${r.Ticker ?? '—'}</td>
+          <td class="dim">${r.Layer ?? '—'}</td>
+          <td class="flat">${r['R1(50%) ×'] ?? '—'}</td>
+          <td>${r['R2(30%) ×'] ?? '—'}</td>
+          <td class="dim">${r['R3(20%) ×'] ?? '—'}</td>
+          <td class="${parseInt(r.Stops)>6?'neg':'flat'}">${r.Stops ?? '—'}</td>
+          <td>${r['Days Held'] ?? '—'}</td>
+          <td>$${r['Peak Pos ($)'] ?? '—'}</td>
+          <td class="${colClass(r['P&L Contrib.'])}">${r['P&L Contrib.'] ?? '—'}</td>
+        </tr>`).join('')}
+      </tbody>
+    </table>`;
+  $('holdings-wrap').innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   ALLOCATION LOG
+══════════════════════════════════════════════════════════════════════ */
+function renderAllocLog(rows) {
+  $('rebal-count').textContent = `${rows.length} rebalances`;
+
+  const rankChip = (val, cls) =>
+    val && val !== '—' ? `<span class="rank-chip ${cls}">${val}</span>` : `<span class="dim">—</span>`;
+
+  const deployedBar = dep => {
+    const pct = parseFloat(dep);
+    const fillClass = pct >= 100 ? '' : pct > 0 ? 'partial' : 'zero';
+    return `<div class="deployed-bar">
+      <div class="bar-bg"><div class="bar-fill ${fillClass}" style="width:${Math.min(pct||0,100)}%"></div></div>
+      <span style="font-size:0.72rem">${dep}</span>
+    </div>`;
+  };
+
+  const momentumCols = ['INOD_Momentum','DUOT_Momentum','BABA_Momentum','AI_Momentum'];
+
+  const html = `
+    <table>
+      <thead><tr>
+        <th>Date</th>
+        <th>NAV</th>
+        <th>Eligible (&gt;MA200)</th>
+        <th>INOD Mom.</th>
+        <th>DUOT Mom.</th>
+        <th>BABA Mom.</th>
+        <th>AI Mom.</th>
+        <th>Rank 1 (50%)</th>
+        <th>Rank 2 (30%)</th>
+        <th>Rank 3 (20%)</th>
+        <th>Cash Reserve</th>
+        <th>Deployed</th>
+      </tr></thead>
+      <tbody>
+        ${rows.map(r => {
+          const nav = parseFloat((r['NAV ($)']||'0').replace(/,/g,''));
+          const navClass = nav > 1000 ? 'pos' : nav < 1000 ? 'neg' : '';
+          const formatMom = v => {
+            if (!v || v === '+nan%' || v === '—' || v === 'N/A') return '<span class="dim">N/A</span>';
+            const n = parseFloat(v);
+            return `<span class="${n>=0?'pos':'neg'}">${v}</span>`;
+          };
+          return `<tr>
+            <td style="font-weight:600;color:var(--muted)">${r.Date}</td>
+            <td class="${navClass}">$${r['NAV ($)'] ?? '—'}</td>
+            <td>${(r['Eligible (>MA200)']||'').includes('NONE')
+              ? '<span class="dim">All cash</span>'
+              : (r['Eligible (>MA200)']||'').split(',').map(t=>t.trim()).filter(Boolean).map(t=>`<span class="ticker-chip">${t}</span>`).join('')
+            }</td>
+            ${momentumCols.map(c => `<td>${formatMom(r[c])}</td>`).join('')}
+            <td>${rankChip(r['Rank1 (50%)'], 'rank-1')}</td>
+            <td>${rankChip(r['Rank2 (30%)'], 'rank-2')}</td>
+            <td>${rankChip(r['Rank3 (20%)'], 'rank-3')}</td>
+            <td class="dim">$${r['Cash Reserve ($)'] ?? '—'}</td>
+            <td>${deployedBar(r['Deployed (%)'] ?? '0%')}</td>
+          </tr>`;
+        }).join('')}
+      </tbody>
+    </table>`;
+  $('alloc-wrap').innerHTML = html;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   STOP EVENTS
+══════════════════════════════════════════════════════════════════════ */
+function renderStops(rows) {
+  if (!rows.length) {
+    $('stops-grid').innerHTML = '<p style="color:var(--muted);font-size:0.8rem;padding:12px">No stop events recorded.</p>';
+    return;
+  }
+  $('stops-grid').innerHTML = rows.map(r => {
+    const desc  = r['Eligible (>MA200)'] || '';
+    const match = desc.match(/Stop:\s+(\w+)\s+closed\s+@\s+\$([0-9.]+)\s+\(HWM=\$([0-9.]+),\s+drawdown=([0-9.]+%)\)/);
+    if (!match) return '';
+    const [, ticker, closePrice, hwm, dd] = match;
+    return `<div class="stop-card">
+      <div class="stop-header">
+        <span class="stop-ticker">${ticker}</span>
+        <span class="stop-date">${r.Date}</span>
+      </div>
+      <div class="stop-detail">
+        Closed @ <strong>$${closePrice}</strong> &nbsp;·&nbsp;
+        HWM: $${hwm} &nbsp;·&nbsp;
+        Drawdown: <span class="stop-dd">${dd}</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+</script>
+
+</body>
+</html>
