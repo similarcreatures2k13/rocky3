@@ -225,7 +225,7 @@
 <body class="font-mono">
 
 <!-- ═══════════════════════════════════ HEADER -->
-<header class="sticky top-0 z-50 flex items-center justify-between px-4 py-3"
+<<header class="sticky top-0 z-50 flex items-center justify-between px-4 py-3"
         style="background:#030303;border-bottom:1px solid rgba(0,255,65,0.13)">
   <div class="flex items-center gap-2 flex-wrap">
     <span class="text-xs font-bold tracking-widest glow-g" style="color:var(--g)">ROCKY3</span>
@@ -293,7 +293,7 @@
   </div>
 </section>
 
-<!-- ═══════════════════════════════════ DISCOVERY MODULE (NEW) -->
+<!-- ═══════════════════════════════════ DISCOVERY MODULE -->
 <section class="px-4 mt-5" id="discovery-section">
   <div class="lbl mb-3">🎯 AI Ticker Discovery — describe a theme, get candidate tickers</div>
   <div class="card" id="discovery-card">
@@ -322,12 +322,11 @@
       </div>
     </div>
 
-    <!-- Queue list (hidden until first discovery) -->
+    <!-- Queue list -->
     <div id="queue-wrap" class="mt-4" style="display:none">
       <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
         <span class="lbl">Discovery Queue</span>
         <div class="flex gap-2 items-center">
-          <!-- TIER 3: batch-validate all pending entries -->
           <button id="val-all-btn" class="btn btn-g btn-sm"
                   onclick="validateAllPending()" style="display:none">⚡ VALIDATE ALL</button>
           <span class="text-xs" id="queue-count" style="color:rgba(0,255,65,0.4)">0 tickers</span>
@@ -346,7 +345,6 @@
 
     <!-- ── ASSET A ─────────────────────────────── -->
     <div class="card card-a" id="card-a">
-      <!-- Ticker header + AI populate -->
       <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
         <div class="flex items-center gap-2 flex-wrap">
           <input type="text" class="ticker-name-input"
@@ -362,7 +360,6 @@
       </div>
 
       <div class="grid gap-3">
-        <!-- Price -->
         <div>
           <div class="flex justify-between items-center mb-1">
             <span class="lbl">Share Price</span>
@@ -371,7 +368,6 @@
           <input type="range" class="sl-a" data-asset="assetA" data-field="price"
                  min="0.10" max="500" step="0.10" value="40" />
         </div>
-        <!-- Concentration -->
         <div>
           <div class="flex justify-between items-center mb-1">
             <span class="lbl">Client Concentration</span>
@@ -381,7 +377,6 @@
                  min="0" max="100" step="1" value="32" />
           <div class="lbl mt-1" id="warn-a-conc" style="color:var(--amber)">⚠ SHOCK PENALTY ACTIVE</div>
         </div>
-        <!-- Growth -->
         <div>
           <div class="flex justify-between items-center mb-1">
             <span class="lbl">Fwd Revenue Growth</span>
@@ -390,7 +385,6 @@
           <input type="range" class="sl-a" data-asset="assetA" data-field="growth"
                  min="0" max="500" step="1" value="40" />
         </div>
-        <!-- Margin -->
         <div>
           <div class="flex justify-between items-center mb-1">
             <span class="lbl">Gross Margin</span>
@@ -399,7 +393,6 @@
           <input type="range" class="sl-a" data-asset="assetA" data-field="margin"
                  min="0" max="90" step="1" value="22" />
         </div>
-        <!-- EV -->
         <div>
           <div class="flex justify-between items-center mb-1">
             <span class="lbl">Enterprise Value ($M)</span>
@@ -408,7 +401,6 @@
           <input type="range" class="sl-a" data-asset="assetA" data-field="ev"
                  min="1" max="10000" step="5" value="600" />
         </div>
-        <!-- Cash Ratio -->
         <div>
           <div class="flex justify-between items-center mb-1">
             <span class="lbl">Cash Ratio</span>
@@ -419,7 +411,6 @@
         </div>
       </div>
 
-      <!-- Score block -->
       <div class="grid grid-cols-2 gap-2 mt-3">
         <div class="score-box" style="border-color:rgba(0,255,65,0.3)">
           <div class="lbl">Raw Convexity</div>
@@ -592,10 +583,8 @@
 <script>
 /* ══════════════════════════════════════════════════════════════════
    UNIFIED REACTIVE STATE
-   (exact structure per spec — sliders initialise all numeric values)
 ══════════════════════════════════════════════════════════════════ */
 const S = {
-  // EXISTING — two-asset reactive state
   assetA: {
     ticker: "INOD",
     price: 40, concentration: 32, growth: 40, margin: 22, ev: 600, cash: 0.45,
@@ -606,12 +595,7 @@ const S = {
     price: 9.8, concentration: 48, growth: 55, margin: 35, ev: 45, cash: 0.80,
     rawConvexity: 0, survivalScore: 0, dilution: true
   },
-  // NEW — discovery queue; each entry: { ticker, company, rationale, status, ts }
-  // status: "pending" | "validated" | "rejected"
   discoveryQueue: [],
-  // TIER 3 — N-asset array; each entry: { ticker, rawConvexity, survivalScore, weight, source }
-  // source: "manual" | "discovered"
-  // Populated at boot from assetA/assetB, extended by promoteToPortfolio()
   assets: []
 };
 
@@ -620,23 +604,15 @@ const S = {
 ══════════════════════════════════════════════════════════════════ */
 function recompute(key) {
   const a = S[key];
-
-  // Raw Convexity = (Growth% × Margin%) / (EV / CashRatio)
   const denom = a.ev / Math.max(a.cash, 0.001);
   a.rawConvexity = denom > 0 ? (a.growth * a.margin) / denom : 0;
-
   let score = a.rawConvexity;
-
-  // Concentration shock penalty: −1.5% per 1pp above 30%, capped at −50%
   if (a.concentration > 30) {
-    const excess  = a.concentration - 30;
+    const excess = a.concentration - 30;
     const penalty = Math.min(excess * 0.015, 0.50);
     score *= (1 - penalty);
   }
-
-  // Dilution penalty: flat −28% if flag active
   if (a.dilution) score *= 0.72;
-
   a.survivalScore = Math.max(0, score);
 }
 
@@ -661,14 +637,14 @@ function initChart() {
           label: 'Survival Score',
           data: [0, 0],
           backgroundColor: ['rgba(0,255,65,0.14)', 'rgba(0,180,255,0.14)'],
-          borderColor:      ['#00ff41', '#00b4ff'],
+          borderColor: ['#00ff41', '#00b4ff'],
           borderWidth: 2,
         },
         {
           label: 'Raw Convexity',
           data: [0, 0],
           backgroundColor: ['rgba(255,183,0,0.07)', 'rgba(255,183,0,0.07)'],
-          borderColor:      ['rgba(255,183,0,0.48)', 'rgba(255,183,0,0.48)'],
+          borderColor: ['rgba(255,183,0,0.48)', 'rgba(255,183,0,0.48)'],
           borderWidth: 1,
           borderDash: [5, 3],
         },
@@ -703,139 +679,117 @@ function initChart() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   RENDER — full sweep on every state change
+   RENDER
 ══════════════════════════════════════════════════════════════════ */
 function renderAll() {
   renderAsset('assetA', 'a');
   renderAsset('assetB', 'b');
-  syncManualAssets(); // TIER 3: keep S.assets[0/1] in sync with slider state
+  syncManualAssets();
   renderChart();
   renderManifest();
 }
 
 function renderAsset(key, tag) {
-  const a   = S[key];
+  const a = S[key];
   const set = (id, v) => { const el = document.getElementById(id); if (el) el.textContent = v; };
-
-  // Numeric values
-  set(`v-${tag}-price`,         `$${a.price.toFixed(2)}`);
+  set(`v-${tag}-price`, `$${a.price.toFixed(2)}`);
   set(`v-${tag}-concentration`, `${a.concentration}%`);
-  set(`v-${tag}-growth`,        `${a.growth}%`);
-  set(`v-${tag}-margin`,        `${a.margin}%`);
-  set(`v-${tag}-ev`,            `$${a.ev}M`);
-  set(`v-${tag}-cash`,          a.cash.toFixed(2));
-
-  // Concentration class + warning
-  const concEl  = document.getElementById(`v-${tag}-concentration`);
-  const warnEl  = document.getElementById(`warn-${tag}-conc`);
+  set(`v-${tag}-growth`, `${a.growth}%`);
+  set(`v-${tag}-margin`, `${a.margin}%`);
+  set(`v-${tag}-ev`, `$${a.ev}M`);
+  set(`v-${tag}-cash`, a.cash.toFixed(2));
+  const concEl = document.getElementById(`v-${tag}-concentration`);
+  const warnEl = document.getElementById(`warn-${tag}-conc`);
   if (concEl) {
     concEl.className = `text-xs font-bold ${a.concentration > 40 ? 'c-danger' : a.concentration > 30 ? 'c-caution' : 'c-safe'}`;
   }
   if (warnEl) {
-    warnEl.textContent =
-      a.concentration > 40 ? '⚠ CRITICAL: EXTREME CONCENTRATION RISK' :
+    warnEl.textContent = a.concentration > 40 ? '⚠ CRITICAL: EXTREME CONCENTRATION RISK' :
       a.concentration > 30 ? '⚠ SHOCK PENALTY ACTIVE (>' + a.concentration + '% threshold breach)' : '';
     warnEl.style.color = a.concentration > 40 ? 'var(--red)' : 'var(--amber)';
   }
-
-  // Scores
   set(`raw-${tag}`, a.rawConvexity.toFixed(5));
   set(`sur-${tag}`, a.survivalScore.toFixed(5));
-
-  // Card border state
   const card = document.getElementById(`card-${tag}`);
   if (card) {
-    card.className = `card card-${tag}` +
-      (a.concentration > 40 ? ' card-danger' : a.concentration > 30 ? ' card-warn' : '');
+    card.className = `card card-${tag}` + (a.concentration > 40 ? ' card-danger' : a.concentration > 30 ? ' card-warn' : '');
   }
-
-  // Chart legend labels
   document.getElementById(`leg-${tag}`).textContent = a.ticker;
 }
 
-// TIER 3: N-bar chart — data driven entirely by S.assets array
 function renderChart() {
   if (!chart) return;
-
-  // Colour palettes cycling over N assets
-  const BG  = ['rgba(0,255,65,0.14)','rgba(0,180,255,0.14)','rgba(255,183,0,0.14)',
-                'rgba(180,0,255,0.14)','rgba(255,100,0,0.14)'];
+  const BG = ['rgba(0,255,65,0.14)','rgba(0,180,255,0.14)','rgba(255,183,0,0.14)',
+              'rgba(180,0,255,0.14)','rgba(255,100,0,0.14)'];
   const BDR = ['#00ff41','#00b4ff','#ffb700','#b400ff','#ff6400'];
-
   chart.data.labels = S.assets.map(a => a.ticker);
-
-  chart.data.datasets[0].data            = S.assets.map(a => a.survivalScore);
-  chart.data.datasets[0].backgroundColor = S.assets.map((_, i) => BG[i  % BG.length]);
-  chart.data.datasets[0].borderColor     = S.assets.map((_, i) => BDR[i % BDR.length]);
-
-  chart.data.datasets[1].data            = S.assets.map(a => a.rawConvexity);
+  chart.data.datasets[0].data = S.assets.map(a => a.survivalScore);
+  chart.data.datasets[0].backgroundColor = S.assets.map((_, i) => BG[i % BG.length]);
+  chart.data.datasets[0].borderColor = S.assets.map((_, i) => BDR[i % BDR.length]);
+  chart.data.datasets[1].data = S.assets.map(a => a.rawConvexity);
   chart.data.datasets[1].backgroundColor = S.assets.map(() => 'rgba(255,183,0,0.07)');
-  chart.data.datasets[1].borderColor     = S.assets.map(() => 'rgba(255,183,0,0.45)');
-
+  chart.data.datasets[1].borderColor = S.assets.map(() => 'rgba(255,183,0,0.45)');
   chart.update('active');
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   AUDIT MANIFEST — fully dynamic, uses live ticker names & scores
+   AUDIT MANIFEST
 ══════════════════════════════════════════════════════════════════ */
 function renderManifest() {
   const penaltyMultiplier = a => {
     const raw = a.rawConvexity;
     return raw > 0 ? +(a.survivalScore / raw).toFixed(4) : 1;
   };
-
   const flagsA = buildFlags(S.assetA);
   const flagsB = buildFlags(S.assetB);
-
   const manifest = {
-    generated_utc:  new Date().toISOString(),
+    generated_utc: new Date().toISOString(),
     system_version: "rocky3-audit-v4-dynamic",
     portfolio: {
-      account_equity_usd:       1000,
-      available_cash_usd:       200,
-      deployed_capital_usd:     800,
-      options_floor_usd:        2500,
-      phase_status:             "PHASE_1_OPTIONS_HARD_LOCKED",
-      floor_deficit_usd:        1500,
+      account_equity_usd: 1000,
+      available_cash_usd: 200,
+      deployed_capital_usd: 800,
+      options_floor_usd: 2500,
+      phase_status: "PHASE_1_OPTIONS_HARD_LOCKED",
+      floor_deficit_usd: 1500,
     },
     assets: {
       [S.assetA.ticker]: {
-        ticker:                    S.assetA.ticker,
-        share_price_usd:           S.assetA.price,
-        client_concentration_pct:  S.assetA.concentration,
-        fwd_revenue_growth_pct:    S.assetA.growth,
-        gross_margin_pct:          S.assetA.margin,
-        enterprise_value_M_usd:    S.assetA.ev,
-        cash_ratio:                S.assetA.cash,
-        dilution_active:           S.assetA.dilution,
-        raw_convexity_score:       +S.assetA.rawConvexity.toFixed(6),
-        survival_score:            +S.assetA.survivalScore.toFixed(6),
-        penalty_multiplier:        penaltyMultiplier(S.assetA),
-        risk_flags:                flagsA,
+        ticker: S.assetA.ticker,
+        share_price_usd: S.assetA.price,
+        client_concentration_pct: S.assetA.concentration,
+        fwd_revenue_growth_pct: S.assetA.growth,
+        gross_margin_pct: S.assetA.margin,
+        enterprise_value_M_usd: S.assetA.ev,
+        cash_ratio: S.assetA.cash,
+        dilution_active: S.assetA.dilution,
+        raw_convexity_score: +S.assetA.rawConvexity.toFixed(6),
+        survival_score: +S.assetA.survivalScore.toFixed(6),
+        penalty_multiplier: penaltyMultiplier(S.assetA),
+        risk_flags: flagsA,
       },
       [S.assetB.ticker]: {
-        ticker:                    S.assetB.ticker,
-        share_price_usd:           S.assetB.price,
-        client_concentration_pct:  S.assetB.concentration,
-        fwd_revenue_growth_pct:    S.assetB.growth,
-        gross_margin_pct:          S.assetB.margin,
-        enterprise_value_M_usd:    S.assetB.ev,
-        cash_ratio:                S.assetB.cash,
-        dilution_active:           S.assetB.dilution,
-        raw_convexity_score:       +S.assetB.rawConvexity.toFixed(6),
-        survival_score:            +S.assetB.survivalScore.toFixed(6),
-        penalty_multiplier:        penaltyMultiplier(S.assetB),
-        risk_flags:                flagsB,
+        ticker: S.assetB.ticker,
+        share_price_usd: S.assetB.price,
+        client_concentration_pct: S.assetB.concentration,
+        fwd_revenue_growth_pct: S.assetB.growth,
+        gross_margin_pct: S.assetB.margin,
+        enterprise_value_M_usd: S.assetB.ev,
+        cash_ratio: S.assetB.cash,
+        dilution_active: S.assetB.dilution,
+        raw_convexity_score: +S.assetB.rawConvexity.toFixed(6),
+        survival_score: +S.assetB.survivalScore.toFixed(6),
+        penalty_multiplier: penaltyMultiplier(S.assetB),
+        risk_flags: flagsB,
       },
     },
     formula: "(FwdGrowth% × GrossMargin%) / (EV_M / CashRatio)",
     penalty_rules: {
       concentration: "score × (1 − min((conc% − 30) × 0.015, 0.50))  when conc% > 30",
-      dilution:      "score × 0.72  when dilution_active = true",
+      dilution: "score × 0.72  when dilution_active = true",
     },
     total_risk_flags: flagsA.length + flagsB.length,
   };
-
   document.getElementById('audit-text').textContent = JSON.stringify(manifest, null, 2);
 }
 
@@ -844,34 +798,33 @@ function buildFlags(a) {
   if (a.concentration > 40) flags.push(`${a.ticker}: CRITICAL — concentration ${a.concentration}% exceeds 40%`);
   else if (a.concentration > 30) flags.push(`${a.ticker}: concentration ${a.concentration}% above 30% threshold`);
   if (a.dilution) flags.push(`${a.ticker}: active dilution — EPS compression & float inflation risk`);
-  if (a.ev < 50)  flags.push(`${a.ticker}: micro-cap EV $${a.ev}M — extreme liquidity & gap-down risk`);
+  if (a.ev < 50) flags.push(`${a.ticker}: micro-cap EV $${a.ev}M — extreme liquidity & gap-down risk`);
   return flags;
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   SLIDER BINDINGS — all inputs drive state exclusively
+   SLIDER BINDINGS
 ══════════════════════════════════════════════════════════════════ */
 function initSliders() {
   document.querySelectorAll('input[type="range"][data-asset]').forEach(el => {
     el.addEventListener('input', () => {
-      const key   = el.dataset.asset;
+      const key = el.dataset.asset;
       const field = el.dataset.field;
       S[key][field] = parseFloat(el.value);
       recompute(key);
       renderAll();
     });
-    // Prevent page scroll on mobile while dragging a slider
     el.addEventListener('touchmove', e => e.stopPropagation(), { passive: true });
   });
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   TICKER NAME INPUTS — editable labels update everything
+   TICKER INPUTS
 ══════════════════════════════════════════════════════════════════ */
 function initTickerInputs() {
   ['a', 'b'].forEach(tag => {
     const key = tag === 'a' ? 'assetA' : 'assetB';
-    const el  = document.getElementById(`ticker-${tag}`);
+    const el = document.getElementById(`ticker-${tag}`);
     el.addEventListener('input', () => {
       S[key].ticker = (el.value.trim().toUpperCase() || (tag === 'a' ? 'ASSET_A' : 'ASSET_B'));
       renderAll();
@@ -893,21 +846,16 @@ function toggleDilution(key) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   SYNC SLIDERS FROM STATE (used after AI populate)
+   SYNC SLIDERS
 ══════════════════════════════════════════════════════════════════ */
 function syncSliders(key) {
-  const a   = S[key];
+  const a = S[key];
   const tag = key === 'assetA' ? 'a' : 'b';
-
   document.querySelectorAll(`input[type="range"][data-asset="${key}"]`).forEach(el => {
     const f = el.dataset.field;
     if (f in a) el.value = a[f];
   });
-
-  // Ticker text input
   document.getElementById(`ticker-${tag}`).value = a.ticker;
-
-  // Dilution toggle
   const dilBtn = document.getElementById(`dil-${tag}`);
   dilBtn.classList.toggle('on', a.dilution);
   dilBtn.textContent = a.dilution ? '⚠ DILUTION' : '⊘ DILUTION';
@@ -926,7 +874,7 @@ document.getElementById('copy-btn').addEventListener('click', async () => {
     document.body.appendChild(ta); ta.select(); document.execCommand('copy');
     document.body.removeChild(ta);
   }
-  const ok  = document.getElementById('copy-ok');
+  const ok = document.getElementById('copy-ok');
   const btn = document.getElementById('copy-btn');
   ok.classList.remove('hidden');
   btn.classList.add('flash');
@@ -934,7 +882,7 @@ document.getElementById('copy-btn').addEventListener('click', async () => {
 });
 
 /* ══════════════════════════════════════════════════════════════════
-   CONFIG — localStorage key management
+   CONFIG
 ══════════════════════════════════════════════════════════════════ */
 const KS = 'rocky3_api_key';
 const MS = 'rocky3_model';
@@ -975,7 +923,7 @@ document.getElementById('cfg-clear').addEventListener('click', () => {
 });
 
 /* ══════════════════════════════════════════════════════════════════
-   AI POPULATE — dispatches ticker to AI, auto-populates all sliders
+   AI POPULATE
 ══════════════════════════════════════════════════════════════════ */
 async function aiPopulate(key) {
   const apiKey = localStorage.getItem(KS);
@@ -984,59 +932,49 @@ async function aiPopulate(key) {
     document.getElementById('config-pane').classList.remove('hidden');
     return;
   }
-
-  const tag    = key === 'assetA' ? 'a' : 'b';
-  const model  = localStorage.getItem(MS) || 'google/gemini-2.5-flash';
+  const tag = key === 'assetA' ? 'a' : 'b';
+  const model = localStorage.getItem(MS) || 'google/gemini-2.5-flash';
   const ticker = S[key].ticker;
-  const btn    = document.getElementById(`pop-${tag}`);
-
+  const btn = document.getElementById(`pop-${tag}`);
   btn.textContent = '⟳ FETCHING…'; btn.disabled = true;
 
   const prompt =
     `Provide current public financial metrics for stock ticker symbol: ${ticker}\n` +
     `Return ONLY a raw JSON object — no markdown, no code fences, no text before or after:\n` +
-    `{"price":<current USD share price>,"concentration":<largest single customer % of revenue 0-100>,"growth":<forward 12-month revenue growth % 0-500>,"margin":<gross margin % 0-90>,"ev":<enterprise value in millions USD>,"cash":<cash ratio decimal 0-10>,"dilution":<true if share count actively increasing else false>}`;
+    `{"price":<<current USD share price>,"concentration":<<largest single customer % of revenue 0-100>,"growth":<<forward 12-month revenue growth % 0-500>,"margin":<<gross margin % 0-90>,"ev":<<enterprise value in millions USD>,"cash":<<cash ratio decimal 0-10>,"dilution":<<true if share count actively increasing else false>}`;
 
   try {
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Content-Type':  'application/json',
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem(KS)}`,
-        'HTTP-Referer':  window.location.href,
-        'X-Title':       'Rocky3 AI Market Discovery',
+        'HTTP-Referer': window.location.href,
+        'X-Title': 'Rocky3 AI Market Discovery',
       },
       body: JSON.stringify({
         model,
         messages: [
           { role: 'system', content: 'You are a financial data extraction API. Return ONLY raw JSON — no markdown, no code fences, no explanation.' },
-          { role: 'user',   content: prompt },
+          { role: 'user', content: prompt },
         ],
       }),
     });
-
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const json    = await res.json();
+    const json = await res.json();
     const content = json.choices?.[0]?.message?.content || '';
-
-    // Extract first JSON object from response
     const match = content.match(/\{[\s\S]*?\}/);
     if (!match) throw new Error('No JSON object found in response');
     const parsed = JSON.parse(match[0]);
-
-    // Populate state from AI data
     const fields = ['price','concentration','growth','margin','ev','cash','dilution'];
     fields.forEach(f => {
       if (parsed[f] !== undefined) S[key][f] = f === 'dilution' ? Boolean(parsed[f]) : parseFloat(parsed[f]) || 0;
     });
-
     syncSliders(key);
     recompute(key);
     renderAll();
-
     btn.textContent = `✓ ${ticker} LOADED`;
     setTimeout(() => { btn.textContent = '⚡ AI POP'; btn.disabled = false; }, 2500);
-
   } catch (err) {
     console.error('AI Populate error:', err);
     btn.textContent = `✗ ERROR`;
@@ -1045,7 +983,7 @@ async function aiPopulate(key) {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   OPENROUTER CONSULT — streams compliance analysis
+   OPENROUTER CONSULT
 ══════════════════════════════════════════════════════════════════ */
 document.getElementById('consult-btn').addEventListener('click', consultAuditor);
 document.getElementById('clear-ai').addEventListener('click', () => {
@@ -1054,17 +992,14 @@ document.getElementById('clear-ai').addEventListener('click', () => {
 });
 
 async function consultAuditor() {
-  // Key read from localStorage at the exact millisecond of dispatch
   const apiKey = localStorage.getItem(KS);
   if (!apiKey) {
     alert('Configure your OpenRouter API key first (⚙ CONFIG).');
     document.getElementById('config-pane').classList.remove('hidden');
     return;
   }
-
-  const model      = localStorage.getItem(MS) || 'google/gemini-2.5-flash';
-  const auditText  = document.getElementById('audit-text').textContent;
-
+  const model = localStorage.getItem(MS) || 'google/gemini-2.5-flash';
+  const auditText = document.getElementById('audit-text').textContent;
   const systemPrompt =
     "Act as an aggressive, zero-bias institutional risk compliance officer. " +
     "Cross-examine this micro-cap data block. " +
@@ -1074,55 +1009,49 @@ async function consultAuditor() {
     "Explicitly state whether to BUY this pair, HOLD dry powder, or EXCHANGE them for " +
     "alternative high-operating-leverage assets.";
 
-  // Show terminal
-  const wrap   = document.getElementById('terminal-wrap');
+  const wrap = document.getElementById('terminal-wrap');
   const respEl = document.getElementById('ai-response');
   const cursor = document.getElementById('stream-cur');
-  const spin   = document.getElementById('consult-spin');
-  const btn    = document.getElementById('consult-btn');
+  const spin = document.getElementById('consult-spin');
+  const btn = document.getElementById('consult-btn');
 
   wrap.style.display = 'block';
   wrap.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  respEl.textContent  = '';
-  respEl.style.color  = '#8dd88d';
+  respEl.textContent = '';
+  respEl.style.color = '#8dd88d';
   cursor.classList.remove('hidden');
   spin.classList.remove('hidden');
-  btn.disabled        = true;
+  btn.disabled = true;
   document.getElementById('model-lbl').textContent = model;
 
   try {
     const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Content-Type':  'application/json',
-        'Authorization': `Bearer ${localStorage.getItem(KS)}`,   // read from memory at dispatch
-        'HTTP-Referer':  window.location.href,
-        'X-Title':       'Rocky3 Micro-Cap Audit Console',
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${localStorage.getItem(KS)}`,
+        'HTTP-Referer': window.location.href,
+        'X-Title': 'Rocky3 Micro-Cap Audit Console',
       },
       body: JSON.stringify({
         model,
         stream: true,
         messages: [
           { role: 'system', content: systemPrompt },
-          { role: 'user',   content: auditText },
+          { role: 'user', content: auditText },
         ],
       }),
     });
-
     if (!res.ok) {
       const err = await res.json().catch(() => ({}));
       throw new Error(`HTTP ${res.status}: ${err.error?.message || res.statusText}`);
     }
-
-    // Stream SSE
-    const reader  = res.body.getReader();
+    const reader = res.body.getReader();
     const decoder = new TextDecoder();
-    let   full    = '';
-
+    let full = '';
     while (true) {
       const { done, value } = await reader.read();
       if (done) break;
-
       const lines = decoder.decode(value, { stream: true }).split('\n');
       for (const line of lines) {
         if (!line.startsWith('data: ')) continue;
@@ -1133,13 +1062,11 @@ async function consultAuditor() {
           if (delta) {
             full += delta;
             respEl.textContent = full;
-            document.getElementById('ai-scroll').scrollTop =
-              document.getElementById('ai-scroll').scrollHeight;
+            document.getElementById('ai-scroll').scrollTop = document.getElementById('ai-scroll').scrollHeight;
           }
         } catch { /* skip malformed SSE chunks */ }
       }
     }
-
   } catch (err) {
     respEl.textContent = `[SYSTEM ERROR]\n${err.message}`;
     respEl.style.color = 'var(--red)';
@@ -1151,43 +1078,52 @@ async function consultAuditor() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   AI TICKER DISCOVERY MODULE
+   TERMINAL LOGGER
 ══════════════════════════════════════════════════════════════════ */
+function logToTerminal(msg, colorVar) {
+  const terminal = document.getElementById('ai-response');
+  const line = document.createElement('div');
+  line.style.color = colorVar || '#8dd88d';
+  line.style.fontSize = '0.72rem';
+  line.style.lineHeight = '1.6';
+  line.style.marginBottom = '2px';
+  line.textContent = msg;
+  terminal.appendChild(line);
+  document.getElementById('ai-scroll').scrollTop = document.getElementById('ai-scroll').scrollHeight;
+}
 
-// ─── callOpenRouter ───────────────────────────────────────────────
-// Generic OpenRouter fetch wrapper shared by all discovery calls.
-// Reads key from 'openrouter_key' first, falls back to KS constant.
-// Throws typed errors so callers can branch on .code.
+function getTimestamp() {
+  const d = new Date();
+  return `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}:${String(d.getSeconds()).padStart(2,'0')}`;
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   AI TICKER DISCOVERY — FIXED PROMPT WITH EXCLUSIONS
+══════════════════════════════════════════════════════════════════ */
 async function callOpenRouter(model, messages) {
-  console.log('[callOpenRouter] entry', { model, messageCount: messages.length });
-
-  // Key resolved at exact millisecond of dispatch — never hardcoded
   const key = localStorage.getItem('openrouter_key') || localStorage.getItem(KS);
   if (!key) {
     const err = new Error('NO API KEY: Enter in settings');
     err.code = 'NO_KEY';
     throw err;
   }
-
   let res;
   try {
     res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Content-Type':  'application/json',
+        'Content-Type': 'application/json',
         'Authorization': `Bearer ${localStorage.getItem('openrouter_key') || localStorage.getItem(KS)}`,
-        'HTTP-Referer':  window.location.href,
-        'X-Title':       'Rocky3 Discovery Engine',
+        'HTTP-Referer': window.location.href,
+        'X-Title': 'Rocky3 Discovery Engine',
       },
       body: JSON.stringify({ model, messages }),
     });
   } catch (netErr) {
-    console.error('[callOpenRouter] network error', netErr);
     const err = new Error('NETWORK ERROR: Check CORS proxy');
     err.code = 'NETWORK';
     throw err;
   }
-
   if (res.status === 429) {
     const err = new Error('RATE LIMITED');
     err.code = '429';
@@ -1198,22 +1134,15 @@ async function callOpenRouter(model, messages) {
     err.code = 'HTTP_ERR';
     throw err;
   }
-
   return res.json();
 }
 
-// ─── handleDiscover ───────────────────────────────────────────────
-// Reads themeInput, dispatches exact prompt to openai/gpt-4o-mini,
-// parses the discovered[] schema, pushes entries into S.discoveryQueue.
 async function handleDiscover() {
-  console.log('[handleDiscover] entry');
-
   const themeEl = document.getElementById('themeInput');
-  const btn     = document.getElementById('discover-btn');
-  const spin    = document.getElementById('discover-spin');
-  const theme   = (themeEl?.value || '').trim();
+  const btn = document.getElementById('discover-btn');
+  const spin = document.getElementById('discover-spin');
+  const theme = (themeEl?.value || '').trim();
 
-  // Guard: missing API key — highlight input and abort
   const key = localStorage.getItem('openrouter_key') || localStorage.getItem(KS);
   if (!key) {
     setDiscoverStatus('NO API KEY: Enter in settings', 'var(--red)');
@@ -1244,28 +1173,48 @@ async function handleDiscover() {
       [
         {
           role: 'system',
-          content: 'You are a quantitative ticker discovery engine. Respond ONLY with valid JSON. Schema: {"discovered":[{"ticker":"AAPL","name":"Apple Inc","sector":"Technology","convexity_estimate":85,"rationale":"..."}]}. Find 5 tickers matching the theme. Prioritize micro-caps under $10, high volatility, AI infrastructure.'
+          content: `You are a micro-cap discovery specialist. Your job is to find UNKNOWN tickers that match a theme.
+
+STRICT RULES:
+1. ONLY suggest tickers with market cap under $2B (micro/small cap)
+2. ONLY suggest tickers with share price under $50
+3. NEVER suggest: NVDA, TSM, AMD, INTC, AVGO, AMAT, LRCX, KLAC, AMKR, MU, QCOM, NXPI, MRVL, or any large-cap semiconductor
+4. Prioritize: obscure companies, recent IPOs, SPACs, or under-followed names
+5. For each ticker, explain WHY it fits the theme in 10 words or less
+
+RESPONSE FORMAT (JSON only):
+{
+  "discovered": [
+    {
+      "ticker": "AAPL",
+      "name": "Apple Inc",
+      "theme_fit": "AI edge chips",
+      "estimated_sector": "semiconductors",
+      "why_obscure": "Recent de-SPAC, under $10, low analyst coverage"
+    }
+  ]
+}`
         },
-        { role: 'user', content: theme }
+        {
+          role: 'user',
+          content: `Theme: "${theme}"
+
+Find 5 tickers. If you cannot find 5 that meet the micro-cap rules, return as many as you can and explain why the others were excluded.`
+        }
       ]
     );
 
-    const raw     = (data.choices?.[0]?.message?.content || '').trim();
-    console.log('[handleDiscover] raw response', raw.slice(0, 200));
-
-    // Strip markdown fences if model wraps in ```json … ```
+    const raw = (data.choices?.[0]?.message?.content || '').trim();
     const cleaned = raw.replace(/^```(?:json)?\s*/i, '').replace(/\s*```$/i, '').trim();
 
     let parsed;
     try {
       parsed = JSON.parse(cleaned);
     } catch (_) {
-      console.error('[handleDiscover] parse failed, raw:', raw.slice(0, 100));
       setDiscoverStatus(`PARSE ERROR: ${raw.slice(0, 100)}`, 'var(--red)');
       return;
     }
 
-    // Accept both { discovered: [...] } and a bare array
     const list = parsed.discovered ?? parsed.tickers ?? parsed.results ?? parsed;
     if (!Array.isArray(list) || list.length === 0) {
       setDiscoverStatus('PARSE ERROR: No ticker array in response', 'var(--red)');
@@ -1275,8 +1224,8 @@ async function handleDiscover() {
     list.forEach(t => {
       addToQueue(
         (t.ticker || '???').toUpperCase(),
-        t.name    || t.company || '',
-        t.rationale || t.sector || '',
+        t.name || t.company || '',
+        t.rationale || t.theme_fit || t.sector || '',
         'pending'
       );
     });
@@ -1286,8 +1235,6 @@ async function handleDiscover() {
     setDiscoverStatus(`✓ ${list.length} ticker${list.length !== 1 ? 's' : ''} queued`, 'var(--g)');
 
   } catch (err) {
-    console.error('[handleDiscover] error', err.code, err.message);
-
     if (err.code === '429') {
       rateLimited = true;
       let secs = 10;
@@ -1303,7 +1250,6 @@ async function handleDiscover() {
           setDiscoverStatus(`RATE LIMITED — retry in ${secs}s`, 'var(--red)');
         }
       }, 1000);
-
     } else if (err.code === 'NO_KEY') {
       setDiscoverStatus('NO API KEY: Enter in settings', 'var(--red)');
     } else if (err.code === 'NETWORK') {
@@ -1311,36 +1257,22 @@ async function handleDiscover() {
     } else {
       setDiscoverStatus(`ERROR: ${err.message}`, 'var(--red)');
     }
-
   } finally {
     spin.classList.add('hidden');
     if (!rateLimited) btn.disabled = false;
   }
 }
 
-// ─── addToQueue ───────────────────────────────────────────────────
-// Deduplicates by ticker, pushes to S.discoveryQueue, re-renders.
 function addToQueue(ticker, company, rationale, status) {
-  console.log('[addToQueue] entry', { ticker, company, status });
-
   const exists = S.discoveryQueue.some(e => e.ticker === ticker);
-  if (exists) {
-    console.log('[addToQueue] duplicate skipped:', ticker);
-    return;
-  }
-
+  if (exists) return;
   S.discoveryQueue.push({ ticker, company, rationale, status, ts: Date.now() });
   renderDiscoveryQueue();
 }
 
-// ─── renderDiscoveryQueue ─────────────────────────────────────────
-// Full DOM rebuild from S.discoveryQueue.
-// Terminal log format: [HH:MM:SS] DISCOVERED: TICKER (status)
 function renderDiscoveryQueue() {
-  console.log('[renderDiscoveryQueue] entry', S.discoveryQueue.length, 'items');
-
-  const wrap  = document.getElementById('queue-wrap');
-  const list  = document.getElementById('queue-list');
+  const wrap = document.getElementById('queue-wrap');
+  const list = document.getElementById('queue-list');
   const count = document.getElementById('queue-count');
 
   if (S.discoveryQueue.length === 0) {
@@ -1349,7 +1281,7 @@ function renderDiscoveryQueue() {
   }
 
   wrap.style.display = '';
-  count.textContent  = `${S.discoveryQueue.length} ticker${S.discoveryQueue.length !== 1 ? 's' : ''}`;
+  count.textContent = `${S.discoveryQueue.length} ticker${S.discoveryQueue.length !== 1 ? 's' : ''}`;
 
   const C = {
     pending:   { border: 'rgba(255,183,0,0.35)',  hex: '#ffb700', label: 'PENDING'   },
@@ -1357,7 +1289,6 @@ function renderDiscoveryQueue() {
     rejected:  { border: 'rgba(255,51,51,0.35)',  hex: '#ff3333', label: 'REJECTED'  },
   };
 
-  // Zero-pad helper for timestamp
   const pad = n => String(n).padStart(2, '0');
   const fmtTs = ts => {
     const d = new Date(ts);
@@ -1365,8 +1296,6 @@ function renderDiscoveryQueue() {
   };
 
   const hasKey = !!(localStorage.getItem('openrouter_key') || localStorage.getItem(KS));
-
-  // TIER 3: show VALIDATE ALL only when pending entries exist; REFINE whenever queue has items
   const pendingCount = S.discoveryQueue.filter(e => e.status === 'pending').length;
   const valAllBtn = document.getElementById('val-all-btn');
   const refineBtn = document.getElementById('refine-btn');
@@ -1377,28 +1306,19 @@ function renderDiscoveryQueue() {
     const c = C[entry.status] || C.pending;
     return `
       <div style="background:var(--card);border:1px solid ${c.border};border-radius:3px;padding:9px 12px">
-
-        <!-- Terminal timestamp line -->
         <div style="font-size:0.66rem;letter-spacing:0.04em;margin-bottom:5px;font-family:inherit">
           <span style="color:#3a6a3a">[${fmtTs(entry.ts)}]</span>
           <span style="color:#4a8a4a;margin-left:6px">DISCOVERED:</span>
           <span style="color:${c.hex};font-weight:700;margin-left:6px">${entry.ticker}</span>
           <span style="color:${c.hex};opacity:0.65;margin-left:4px">(${entry.status})</span>
         </div>
-
-        <!-- Detail + actions row -->
         <div style="display:flex;align-items:flex-start;gap:10px;flex-wrap:wrap">
           <div style="flex:1;min-width:140px">
-            ${entry.company
-              ? `<div style="font-size:0.7rem;color:#5a8a5a">${entry.company}</div>`
-              : ''}
-            ${entry.rationale
-              ? `<div style="font-size:0.66rem;color:#3a6a3a;margin-top:2px;line-height:1.5">${entry.rationale}</div>`
-              : ''}
+            ${entry.company ? `<div style="font-size:0.7rem;color:#5a8a5a">${entry.company}</div>` : ''}
+            ${entry.rationale ? `<div style="font-size:0.66rem;color:#3a6a3a;margin-top:2px;line-height:1.5">${entry.rationale}</div>` : ''}
           </div>
           <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
             ${entry.status === 'pending' && hasKey
-              // TIER 3: per-item VALIDATE calls Yahoo Finance validator
               ? `<button class="btn btn-g btn-sm" id="val-btn-${idx}"
                          onclick="validateQueueEntry('${entry.ticker}',${idx})">▶ VALIDATE</button>`
               : ''}
@@ -1410,95 +1330,26 @@ function renderDiscoveryQueue() {
               : ''}
           </div>
         </div>
-
       </div>`;
   }).join('');
 }
 
-// NEW — call OpenRouter for a single-ticker validation and update queue entry
-async function validateTicker(ticker, idx) {
-  console.log('[validateTicker] entry', ticker, idx);
-
-  const apiKey = localStorage.getItem(KS);
-  if (!apiKey) return;
-
-  const model  = localStorage.getItem(MS) || 'google/gemini-2.5-flash';
-  const btn    = document.getElementById(`val-btn-${idx}`);
-  if (btn) { btn.textContent = '⟳…'; btn.disabled = true; }
-
-  const prompt =
-    `Evaluate ticker ${ticker} for a micro-cap AI infrastructure portfolio ` +
-    `with a $1,000 equity base and a $2,500 options floor.\n` +
-    `Return ONLY raw JSON — no markdown:\n` +
-    `{"verdict":"VALIDATED" or "REJECTED","reason":"one-sentence justification"}`;
-
-  try {
-    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Content-Type':  'application/json',
-        'Authorization': `Bearer ${localStorage.getItem(KS)}`,
-        'HTTP-Referer':  window.location.href,
-        'X-Title':       'Rocky3 Ticker Validation',
-      },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: 'system', content: 'You are a financial risk analyst. Return ONLY raw JSON — no markdown, no explanation.' },
-          { role: 'user',   content: prompt },
-        ],
-      }),
-    });
-
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const data    = await res.json();
-    const content = (data.choices?.[0]?.message?.content || '').trim();
-
-    const match = content.match(/\{[\s\S]*?\}/);
-    if (!match) throw new Error('No JSON in response');
-    const parsed = JSON.parse(match[0]);
-
-    const verdict = (parsed.verdict || '').toUpperCase();
-    const newStatus = verdict === 'VALIDATED' ? 'validated' : 'rejected';
-
-    // Update queue entry in state
-    if (S.discoveryQueue[idx]) {
-      S.discoveryQueue[idx].status    = newStatus;
-      S.discoveryQueue[idx].rationale = parsed.reason || S.discoveryQueue[idx].rationale;
-      console.log('[validateTicker] updated', ticker, '→', newStatus);
-    }
-
-    renderDiscoveryQueue();
-
-  } catch (err) {
-    console.error('[validateTicker] error', err);
-    if (btn) { btn.textContent = '✗ ERR'; btn.disabled = false; }
-  }
-}
-
-// NEW — clear the entire discovery queue
 function clearQueue() {
-  console.log('[clearQueue] entry');
   S.discoveryQueue = [];
   renderDiscoveryQueue();
   document.getElementById('clear-queue-btn').style.display = 'none';
-  setDiscoverStatus('Queue cleared.', 'var(--muted, #4a7a4a)');
+  setDiscoverStatus('Queue cleared.', '#4a7a4a');
   setTimeout(() => setDiscoverStatus('', ''), 1800);
 }
 
-// NEW — helper: set the discovery status label text + colour
 function setDiscoverStatus(msg, colour) {
-  console.log('[setDiscoverStatus]', msg);
   const el = document.getElementById('discover-status');
   if (!el) return;
-  el.textContent  = msg;
-  el.style.color  = colour;
+  el.textContent = msg;
+  el.style.color = colour;
 }
 
-// NEW — wire any static discovery listeners that can't use inline onclick
 function initDiscovery() {
-  console.log('[initDiscovery] entry');
-  // Allow Shift+Enter in themeInput to fire discover
   document.getElementById('themeInput').addEventListener('keydown', e => {
     if (e.key === 'Enter' && e.shiftKey) {
       e.preventDefault();
@@ -1508,34 +1359,16 @@ function initDiscovery() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
-   TIER 3 — YAHOO FINANCE VALIDATION + PORTFOLIO INTEGRATION
+   YAHOO FINANCE VALIDATION + PORTFOLIO INTEGRATION
 ══════════════════════════════════════════════════════════════════ */
-
-// ─── fetchYahooData ───────────────────────────────────────────────
-// Attempt 1: no-cors (opaque response → can't read body → triggers fallback).
-// Attempt 2: allorigins CORS proxy → returns readable JSON.
 async function fetchYahooData(ticker) {
-  console.log('[fetchYahooData] entry', ticker);
-
   const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1y`;
-
-  // Attempt 1 — no-cors
   try {
     const res = await fetch(yahooUrl, { mode: 'no-cors' });
-    // Opaque responses (type='opaque', status=0) can't be read; fall through to proxy
-    if (res.type !== 'opaque' && res.ok) {
-      console.log('[fetchYahooData] direct fetch succeeded');
-      return res.json();
-    }
-    console.log('[fetchYahooData] opaque or non-OK, switching to allorigins proxy');
-  } catch (_) {
-    console.log('[fetchYahooData] direct fetch threw, switching to allorigins proxy');
-  }
-
-  // Attempt 2 — allorigins CORS proxy
+    if (res.type !== 'opaque' && res.ok) return res.json();
+  } catch (_) {}
   const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`;
   const res2 = await fetch(proxyUrl);
-
   if (res2.status === 404) {
     const e = new Error('Ticker not found'); e.code = 'NOT_FOUND'; throw e;
   }
@@ -1545,220 +1378,147 @@ async function fetchYahooData(ticker) {
   return res2.json();
 }
 
-// ─── parseYahooResponse ───────────────────────────────────────────
-// Extract price metrics and calculate 200-day MA.
-// Returns { valid, reason } on rejection or { valid:true, ...metrics } on pass.
 function parseYahooResponse(data, ticker) {
-  console.log('[parseYahooResponse] entry', ticker);
-
   const result = data?.chart?.result?.[0];
-  if (!result) {
-    return { valid: false, reason: 'Ticker not found' };
-  }
-
-  const meta    = result.meta || {};
-  const quotes  = result.indicators?.quote?.[0] || {};
-  const closes  = (quotes.close  || []).filter(v => v != null && v > 0);
+  if (!result) return { valid: false, reason: 'Ticker not found' };
+  const meta = result.meta || {};
+  const quotes = result.indicators?.quote?.[0] || {};
+  const closes = (quotes.close || []).filter(v => v != null && v > 0);
   const volumes = (quotes.volume || []).filter(v => v != null && v > 0);
+  const price = meta.regularMarketPrice || meta.previousClose || 0;
+  const volume = meta.regularMarketVolume || (volumes.length ? volumes[volumes.length - 1] : 0);
 
-  const price  = meta.regularMarketPrice || meta.previousClose || 0;
-  const volume = meta.regularMarketVolume
-              || (volumes.length ? volumes[volumes.length - 1] : 0);
+  if (price > 50) return { valid: false, reason: `Price $${price.toFixed(2)} exceeds $50 limit` };
+  if (volume > 0 && volume < 100000) return { valid: false, reason: `Volume ${volume.toLocaleString()} too low` };
 
-  // Hard filter — price
-  if (price > 50) {
-    return { valid: false, reason: `Price $${price.toFixed(2)} exceeds $50 limit` };
-  }
-  // Hard filter — volume
-  if (volume > 0 && volume < 100_000) {
-    return { valid: false, reason: `Volume ${volume.toLocaleString()} too low` };
-  }
-
-  // 200-day MA from up to last 200 valid closes
   const last200 = closes.slice(-200);
-  const ma200   = last200.length
-    ? parseFloat((last200.reduce((s, v) => s + v, 0) / last200.length).toFixed(4))
-    : null;
-
-  // % distance from 200-day MA
-  const distFromMa200 = ma200
-    ? parseFloat((((price - ma200) / ma200) * 100).toFixed(2))
-    : null;
+  const ma200 = last200.length ? parseFloat((last200.reduce((s, v) => s + v, 0) / last200.length).toFixed(4)) : null;
+  const distFromMa200 = ma200 ? parseFloat((((price - ma200) / ma200) * 100).toFixed(2)) : null;
 
   return {
-    valid:            true,
+    valid: true,
     price,
-    previousClose:    meta.previousClose       ?? null,
-    fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh    ?? null,
-    fiftyTwoWeekLow:  meta.fiftyTwoWeekLow     ?? null,
+    previousClose: meta.previousClose ?? null,
+    fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh ?? null,
+    fiftyTwoWeekLow: meta.fiftyTwoWeekLow ?? null,
     volume,
     ma200,
     distFromMa200,
-    dataPoints:       closes.length,
+    dataPoints: closes.length,
   };
 }
 
-// ─── validateQueueEntry ───────────────────────────────────────────
-// TIER 3 per-item validator: Yahoo Finance → hard filters → promote.
 async function validateQueueEntry(ticker, idx) {
-  console.log('[validateQueueEntry] entry', ticker, idx);
-
   const btn = document.getElementById(`val-btn-${idx}`);
   if (btn) { btn.textContent = '⟳ CHECKING…'; btn.disabled = true; }
 
   try {
-    const raw     = await fetchYahooData(ticker);
+    const raw = await fetchYahooData(ticker);
     const metrics = parseYahooResponse(raw, ticker);
 
     if (!metrics.valid) {
-      // Hard-rejection: update queue status and rationale
-      S.discoveryQueue[idx].status    = 'rejected';
+      S.discoveryQueue[idx].status = 'rejected';
       S.discoveryQueue[idx].rationale = metrics.reason;
-      console.log('[validateQueueEntry] rejected', ticker, metrics.reason);
+      logToTerminal(`[${getTimestamp()}] ${ticker}: REJECTED — ${metrics.reason}`, 'var(--red)');
     } else {
-      // Validated: annotate queue entry, promote to portfolio
-      S.discoveryQueue[idx].status    = 'validated';
+      S.discoveryQueue[idx].status = 'validated';
       S.discoveryQueue[idx].rationale = [
         `$${metrics.price.toFixed(2)}`,
-        metrics.ma200        ? `MA200 $${metrics.ma200}`                            : '',
-        metrics.distFromMa200 != null
-          ? `${metrics.distFromMa200 >= 0 ? '+' : ''}${metrics.distFromMa200}% vs MA`
-          : '',
-        metrics.fiftyTwoWeekLow
-          ? `52w $${metrics.fiftyTwoWeekLow.toFixed(2)}–$${metrics.fiftyTwoWeekHigh.toFixed(2)}`
-          : '',
-        metrics.dataPoints   ? `${metrics.dataPoints}d data`                        : '',
+        metrics.ma200 ? `MA200 $${metrics.ma200}` : '',
+        metrics.distFromMa200 != null ? `${metrics.distFromMa200 >= 0 ? '+' : ''}${metrics.distFromMa200}% vs MA` : '',
+        metrics.fiftyTwoWeekLow ? `52w $${metrics.fiftyTwoWeekLow.toFixed(2)}–$${metrics.fiftyTwoWeekHigh.toFixed(2)}` : '',
+        metrics.dataPoints ? `${metrics.dataPoints}d data` : ''
       ].filter(Boolean).join(' · ');
 
-      console.log('[validateQueueEntry] validated', ticker, metrics);
+      logToTerminal(`[${getTimestamp()}] ${ticker}: VALIDATED @ $${metrics.price.toFixed(2)} | ${metrics.distFromMa200?.toFixed(1)}% from MA200`, 'var(--g)');
       promoteToPortfolio(S.discoveryQueue[idx], metrics);
     }
-
   } catch (err) {
-    console.error('[validateQueueEntry] error', err.code, err.message);
-    S.discoveryQueue[idx].status    = 'rejected';
-    S.discoveryQueue[idx].rationale =
-      err.code === 'NOT_FOUND' ? 'Ticker not found'
-                               : `Fetch error: ${err.message}`;
+    S.discoveryQueue[idx].status = 'rejected';
+    S.discoveryQueue[idx].rationale = err.code === 'NOT_FOUND' ? 'Ticker not found' : `Fetch error: ${err.message}`;
+    logToTerminal(`[${getTimestamp()}] ${ticker}: ERROR — ${err.message}`, 'var(--red)');
+    if (btn) { btn.textContent = '✗ ERR'; btn.disabled = false; }
   }
 
   renderDiscoveryQueue();
 }
 
-// ─── validateAllPending ───────────────────────────────────────────
-// Batch-validate every 'pending' entry sequentially (300ms gap).
 async function validateAllPending() {
-  console.log('[validateAllPending] entry');
-
   const btn = document.getElementById('val-all-btn');
   if (btn) { btn.disabled = true; btn.textContent = '⟳ RUNNING…'; }
-
-  const pending = S.discoveryQueue
-    .map((e, i) => ({ e, i }))
-    .filter(({ e }) => e.status === 'pending');
-
+  const pending = S.discoveryQueue.map((e, i) => ({ e, i })).filter(({ e }) => e.status === 'pending');
   for (const { e, i } of pending) {
     await validateQueueEntry(e.ticker, i);
-    await new Promise(r => setTimeout(r, 300)); // gentle rate-gap
+    await new Promise(r => setTimeout(r, 300));
   }
-
   if (btn) { btn.disabled = false; btn.textContent = '⚡ VALIDATE ALL'; }
 }
 
-// ─── promoteToPortfolio ───────────────────────────────────────────
-// Add a validated discovered ticker to S.assets and recalc weights.
 function promoteToPortfolio(queueEntry, metrics) {
-  console.log('[promoteToPortfolio] entry', queueEntry.ticker);
-
-  // Build a minimal asset object with formula-ready defaults
   const a = {
-    ticker:        queueEntry.ticker,
-    source:        'discovered',
-    price:         metrics.price,
-    ma200:         metrics.ma200,
+    ticker: queueEntry.ticker,
+    source: 'discovered',
+    price: metrics.price,
+    ma200: metrics.ma200,
     distFromMa200: metrics.distFromMa200,
     fiftyTwoWeekHigh: metrics.fiftyTwoWeekHigh,
-    fiftyTwoWeekLow:  metrics.fiftyTwoWeekLow,
-    // Convexity formula inputs — seeded from price range heuristics,
-    // user can tune via Shock Matrix after promotion
-    growth:        35,
-    margin:        25,
-    ev:            Math.max(metrics.price * 5, 10),   // rough EV proxy
-    cash:          0.5,
+    fiftyTwoWeekLow: metrics.fiftyTwoWeekLow,
+    growth: 35,
+    margin: 25,
+    ev: Math.max(metrics.price * 5, 10),
+    cash: 0.5,
     concentration: 25,
-    dilution:      false,
-    rawConvexity:  0,
+    dilution: false,
+    rawConvexity: 0,
     survivalScore: 0,
-    weight:        0,
+    weight: 0,
   };
-
-  // Compute convexity with default inputs
   const denom = a.ev / Math.max(a.cash, 0.001);
-  a.rawConvexity  = denom > 0 ? (a.growth * a.margin) / denom : 0;
-  a.survivalScore = a.rawConvexity; // no shock penalties on discovery defaults
-
-  // Upsert: replace if ticker already exists, else append
+  a.rawConvexity = denom > 0 ? (a.growth * a.margin) / denom : 0;
+  a.survivalScore = a.rawConvexity;
   const existingIdx = S.assets.findIndex(x => x.ticker === a.ticker);
   if (existingIdx >= 0) {
     S.assets[existingIdx] = a;
   } else {
     S.assets.push(a);
   }
-
   recalcWeights();
-  renderChart(); // live N-bar update
+  renderChart();
 }
 
-// ─── syncManualAssets ─────────────────────────────────────────────
-// Keep S.assets[0/1] mirroring the slider-driven assetA/assetB state.
-// Called from renderAll() so the chart always reflects slider edits.
 function syncManualAssets() {
-  console.log('[syncManualAssets] entry');
   ['assetA', 'assetB'].forEach((key, i) => {
     const a = S[key];
     S.assets[i] = {
-      ticker:        a.ticker,
-      rawConvexity:  a.rawConvexity,
+      ticker: a.ticker,
+      rawConvexity: a.rawConvexity,
       survivalScore: a.survivalScore,
-      weight:        0,
-      source:        'manual',
+      weight: 0,
+      source: 'manual',
     };
   });
   recalcWeights();
 }
 
-// ─── recalcWeights ────────────────────────────────────────────────
-// weight = (survivalScore / totalScores) * 100, per spec.
 function recalcWeights() {
-  console.log('[recalcWeights] entry');
   const total = S.assets.reduce((s, a) => s + Math.max(a.survivalScore, 1e-9), 0);
   S.assets.forEach(a => {
     a.weight = total > 0 ? parseFloat(((a.survivalScore / total) * 100).toFixed(2)) : 0;
   });
 }
 
-// ─── initAssets ───────────────────────────────────────────────────
-// Seed S.assets at boot from assetA/assetB (already computed by recomputeAll).
 function initAssets() {
-  console.log('[initAssets] entry');
   syncManualAssets();
 }
 
-// ─── refineDiscovery ─────────────────────────────────────────────
-// Appends exclusion + volatility directive to current theme, re-runs discovery.
 function refineDiscovery() {
-  console.log('[refineDiscovery] entry');
-
-  const themeEl       = document.getElementById('themeInput');
-  const currentTheme  = (themeEl?.value || '').trim();
+  const themeEl = document.getElementById('themeInput');
+  const currentTheme = (themeEl?.value || '').trim();
   const activeTickers = S.discoveryQueue.map(e => e.ticker).join(', ');
-
   const refined = activeTickers
     ? `${currentTheme}. Exclude: ${activeTickers}. Focus on higher volatility alternatives.`
     : currentTheme;
-
   if (themeEl) themeEl.value = refined;
-  console.log('[refineDiscovery] refined theme:', refined);
   handleDiscover();
 }
 
@@ -1772,7 +1532,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initTickerInputs();
   initDiscovery();
   recomputeAll();
-  initAssets();   // TIER 3: seed S.assets from assetA/assetB before first renderAll
+  initAssets();
   renderAll();
 });
 </script>
