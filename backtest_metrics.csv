@@ -1,5 +1,5 @@
-Series,Start NAV ($),End NAV ($),Total Return,CAGR,Ann. Volatility,Sharpe Ratio,Sortino Ratio,Max Drawdown,Calmar Ratio,Beta (vs port),Alpha (annual)
-AI Value Chain Portfolio,"1,000,000","4,014,772",+301.5%,+37.1%,34.7%,0.94,1.41,-48.5%,0.76,,
-portfolio,"1,000,000","4,014,772",+301.5%,+37.1%,34.7%,0.94,1.41,-48.5%,0.76,1.00,+0.0%
-SPY,"1,000,000","1,636,656",+63.7%,+11.8%,17.6%,0.43,0.60,-24.5%,0.48,1.67,+19.7%
-QQQ,"1,000,000","1,802,364",+80.2%,+14.3%,23.3%,0.47,0.67,-34.8%,0.41,1.39,+17.3%
+Series,Start ($),End ($),Total Return,CAGR,Ann. Vol,Sharpe,Sortino,Max DD,Calmar
+"Equity Path  ($250/pos, 20% stop)","1,000.00","2,436.45",+143.6%,+19.5%,52.9%,0.50,0.87,-70.3%,0.28
+SPY Benchmark,"1,000.00","1,881.67",+88.2%,+13.5%,17.1%,0.53,0.72,-24.5%,0.55
+QQQ Benchmark,"1,000.00","2,182.99",+118.3%,+16.9%,22.5%,0.58,0.81,-35.1%,0.48
+Options Path ($50 debit spread/pos),"1,000.16",977.80,-2.2%,-0.5%,706.1%,0.52,0.83,-130.3%,-0.00
