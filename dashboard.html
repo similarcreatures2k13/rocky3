@@ -293,6 +293,45 @@
   </div>
 </section>
 
+<!-- ═══════════════════════════════════ DISCOVERY MODULE (NEW) -->
+<section class="px-4 mt-5" id="discovery-section">
+  <div class="lbl mb-3">🎯 AI Ticker Discovery — describe a theme, get candidate tickers</div>
+  <div class="card" id="discovery-card">
+
+    <div class="grid gap-3">
+      <!-- Theme textarea -->
+      <div>
+        <div class="lbl mb-1">Investment Theme / Sector</div>
+        <textarea id="themeInput" class="t-input" rows="3"
+                  placeholder="e.g. AI inference chips, LLM training data pipelines, edge computing infrastructure, autonomous vehicle sensors…"
+                  autocomplete="off" spellcheck="false"
+                  style="resize:vertical;min-height:72px;line-height:1.55;font-family:inherit"></textarea>
+      </div>
+
+      <!-- Controls row -->
+      <div class="flex gap-2 items-center flex-wrap">
+        <button id="discover-btn" class="btn btn-g" onclick="runDiscovery()">
+          🎯 DISCOVER
+          <span id="discover-spin" class="hidden blink" style="margin-left:3px">◌</span>
+        </button>
+        <button id="clear-queue-btn" class="btn btn-red btn-sm"
+                onclick="clearQueue()" style="display:none">✕ CLEAR QUEUE</button>
+        <span id="discover-status" class="text-xs" style="color:var(--g)"></span>
+      </div>
+    </div>
+
+    <!-- Queue list (hidden until first discovery) -->
+    <div id="queue-wrap" class="mt-4" style="display:none">
+      <div class="flex items-center justify-between mb-2">
+        <span class="lbl">Discovery Queue</span>
+        <span class="text-xs" id="queue-count" style="color:rgba(0,255,65,0.4)">0 tickers</span>
+      </div>
+      <div id="queue-list" class="grid gap-2"></div>
+    </div>
+
+  </div>
+</section>
+
 <!-- ═══════════════════════════════════ SHOCK MATRIX -->
 <section class="px-4 mt-5">
   <div class="lbl mb-3">⚡ Shock Matrix Control — edit tickers · move sliders · toggle dilution</div>
@@ -549,6 +588,7 @@
    (exact structure per spec — sliders initialise all numeric values)
 ══════════════════════════════════════════════════════════════════ */
 const S = {
+  // EXISTING — two-asset reactive state
   assetA: {
     ticker: "INOD",
     price: 40, concentration: 32, growth: 40, margin: 22, ev: 600, cash: 0.45,
@@ -558,7 +598,10 @@ const S = {
     ticker: "DUOT",
     price: 9.8, concentration: 48, growth: 55, margin: 35, ev: 45, cash: 0.80,
     rawConvexity: 0, survivalScore: 0, dilution: true
-  }
+  },
+  // NEW — discovery queue; each entry: { ticker, company, rationale, status, ts }
+  // status: "pending" | "validated" | "rejected"
+  discoveryQueue: []
 };
 
 /* ══════════════════════════════════════════════════════════════════
@@ -1082,6 +1125,266 @@ async function consultAuditor() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   AI TICKER DISCOVERY MODULE (NEW)
+══════════════════════════════════════════════════════════════════ */
+
+// NEW — kick off a theme-based ticker discovery against OpenRouter
+async function runDiscovery() {
+  console.log('[runDiscovery] entry');
+
+  const theme  = (document.getElementById('themeInput').value || '').trim();
+  const apiKey = localStorage.getItem(KS);
+
+  if (!theme) {
+    setDiscoverStatus('⚠ Enter a theme first.', 'var(--amber)');
+    return;
+  }
+  if (!apiKey) {
+    setDiscoverStatus('⚠ No API key — open ⚙ CONFIG.', 'var(--red)');
+    document.getElementById('config-pane').classList.remove('hidden');
+    return;
+  }
+
+  const model = localStorage.getItem(MS) || 'google/gemini-2.5-flash';
+  const btn   = document.getElementById('discover-btn');
+  const spin  = document.getElementById('discover-spin');
+
+  btn.disabled = true;
+  spin.classList.remove('hidden');
+  setDiscoverStatus('Querying OpenRouter…', 'var(--amber)');
+
+  const prompt =
+    `Investment theme: "${theme}"\n` +
+    `Identify 4–6 publicly-traded small-cap or micro-cap stock tickers that directly match this theme.\n` +
+    `Return ONLY a raw JSON array — no markdown, no code fences, no text before or after:\n` +
+    `[{"ticker":"XYZ","company":"Full Company Name","rationale":"One-sentence fit justification"}]`;
+
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${localStorage.getItem(KS)}`,
+        'HTTP-Referer':  window.location.href,
+        'X-Title':       'Rocky3 Ticker Discovery',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: 'You are a financial analyst specialising in small-cap equities. Return ONLY raw JSON arrays — no markdown, no code fences, no explanation.' },
+          { role: 'user',   content: prompt },
+        ],
+      }),
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data    = await res.json();
+    const content = (data.choices?.[0]?.message?.content || '').trim();
+
+    // Extract first JSON array from response
+    const match = content.match(/\[[\s\S]*\]/);
+    if (!match) throw new Error('No JSON array found in response');
+    const tickers = JSON.parse(match[0]);
+
+    if (!Array.isArray(tickers) || tickers.length === 0) throw new Error('Empty ticker array');
+
+    // Add each discovered ticker to the queue as "pending"
+    tickers.forEach(t => {
+      addToQueue(
+        (t.ticker  || '???').toUpperCase(),
+        t.company  || '',
+        t.rationale || '',
+        'pending'
+      );
+    });
+
+    setDiscoverStatus(`✓ ${tickers.length} tickers queued`, 'var(--g)');
+    document.getElementById('clear-queue-btn').style.display = '';
+
+  } catch (err) {
+    console.error('[runDiscovery] error', err);
+    setDiscoverStatus(`✗ ${err.message}`, 'var(--red)');
+  } finally {
+    btn.disabled = false;
+    spin.classList.add('hidden');
+  }
+}
+
+// NEW — push one entry onto S.discoveryQueue and re-render
+function addToQueue(ticker, company, rationale, status) {
+  console.log('[addToQueue] entry', { ticker, company, status });
+
+  // Prevent duplicates
+  const exists = S.discoveryQueue.some(e => e.ticker === ticker);
+  if (exists) {
+    console.log('[addToQueue] duplicate skipped:', ticker);
+    return;
+  }
+
+  S.discoveryQueue.push({ ticker, company, rationale, status, ts: Date.now() });
+  renderQueue();
+}
+
+// NEW — re-render the entire queue list from S.discoveryQueue
+function renderQueue() {
+  console.log('[renderQueue] entry', S.discoveryQueue.length, 'items');
+
+  const wrap  = document.getElementById('queue-wrap');
+  const list  = document.getElementById('queue-list');
+  const count = document.getElementById('queue-count');
+
+  if (S.discoveryQueue.length === 0) {
+    wrap.style.display = 'none';
+    return;
+  }
+
+  wrap.style.display  = '';
+  count.textContent   = `${S.discoveryQueue.length} ticker${S.discoveryQueue.length !== 1 ? 's' : ''}`;
+
+  // Status colour map
+  const colours = {
+    pending:   { border: 'rgba(255,183,0,0.35)',  text: 'var(--amber)', label: 'PENDING'   },
+    validated: { border: 'rgba(0,255,65,0.35)',   text: 'var(--g)',     label: 'VALIDATED' },
+    rejected:  { border: 'rgba(255,51,51,0.35)',  text: 'var(--red)',   label: 'REJECTED'  },
+  };
+
+  list.innerHTML = S.discoveryQueue.map((entry, idx) => {
+    const c        = colours[entry.status] || colours.pending;
+    const isPending = entry.status === 'pending';
+    const apiKey   = localStorage.getItem(KS);
+
+    return `
+      <div style="
+          background:var(--card);
+          border:1px solid ${c.border};
+          border-radius:3px; padding:10px 12px;
+          display:flex; align-items:flex-start; gap:10px; flex-wrap:wrap;
+      ">
+        <!-- Ticker + badge -->
+        <div style="min-width:80px">
+          <div style="font-size:0.88rem;font-weight:700;color:${c.text};letter-spacing:0.04em">
+            ${entry.ticker}
+          </div>
+          <div style="font-size:0.58rem;font-weight:700;letter-spacing:0.18em;color:${c.text};opacity:0.7;margin-top:2px">
+            ${c.label}
+          </div>
+        </div>
+
+        <!-- Company + rationale -->
+        <div style="flex:1;min-width:160px">
+          ${entry.company
+            ? `<div style="font-size:0.72rem;color:#6a9a6a;margin-bottom:2px">${entry.company}</div>`
+            : ''}
+          ${entry.rationale
+            ? `<div style="font-size:0.68rem;color:#4a7a4a;line-height:1.5">${entry.rationale}</div>`
+            : ''}
+        </div>
+
+        <!-- Validate button (pending only, requires API key) -->
+        ${isPending && apiKey ? `
+          <button class="btn btn-g btn-sm"
+                  id="val-btn-${idx}"
+                  onclick="validateTicker('${entry.ticker}', ${idx})">
+            ▶ VALIDATE
+          </button>
+        ` : ''}
+      </div>`;
+  }).join('');
+}
+
+// NEW — call OpenRouter for a single-ticker validation and update queue entry
+async function validateTicker(ticker, idx) {
+  console.log('[validateTicker] entry', ticker, idx);
+
+  const apiKey = localStorage.getItem(KS);
+  if (!apiKey) return;
+
+  const model  = localStorage.getItem(MS) || 'google/gemini-2.5-flash';
+  const btn    = document.getElementById(`val-btn-${idx}`);
+  if (btn) { btn.textContent = '⟳…'; btn.disabled = true; }
+
+  const prompt =
+    `Evaluate ticker ${ticker} for a micro-cap AI infrastructure portfolio ` +
+    `with a $1,000 equity base and a $2,500 options floor.\n` +
+    `Return ONLY raw JSON — no markdown:\n` +
+    `{"verdict":"VALIDATED" or "REJECTED","reason":"one-sentence justification"}`;
+
+  try {
+    const res = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type':  'application/json',
+        'Authorization': `Bearer ${localStorage.getItem(KS)}`,
+        'HTTP-Referer':  window.location.href,
+        'X-Title':       'Rocky3 Ticker Validation',
+      },
+      body: JSON.stringify({
+        model,
+        messages: [
+          { role: 'system', content: 'You are a financial risk analyst. Return ONLY raw JSON — no markdown, no explanation.' },
+          { role: 'user',   content: prompt },
+        ],
+      }),
+    });
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data    = await res.json();
+    const content = (data.choices?.[0]?.message?.content || '').trim();
+
+    const match = content.match(/\{[\s\S]*?\}/);
+    if (!match) throw new Error('No JSON in response');
+    const parsed = JSON.parse(match[0]);
+
+    const verdict = (parsed.verdict || '').toUpperCase();
+    const newStatus = verdict === 'VALIDATED' ? 'validated' : 'rejected';
+
+    // Update queue entry in state
+    if (S.discoveryQueue[idx]) {
+      S.discoveryQueue[idx].status    = newStatus;
+      S.discoveryQueue[idx].rationale = parsed.reason || S.discoveryQueue[idx].rationale;
+      console.log('[validateTicker] updated', ticker, '→', newStatus);
+    }
+
+    renderQueue();
+
+  } catch (err) {
+    console.error('[validateTicker] error', err);
+    if (btn) { btn.textContent = '✗ ERR'; btn.disabled = false; }
+  }
+}
+
+// NEW — clear the entire discovery queue
+function clearQueue() {
+  console.log('[clearQueue] entry');
+  S.discoveryQueue = [];
+  renderQueue();
+  document.getElementById('clear-queue-btn').style.display = 'none';
+  setDiscoverStatus('Queue cleared.', 'var(--muted, #4a7a4a)');
+  setTimeout(() => setDiscoverStatus('', ''), 1800);
+}
+
+// NEW — helper: set the discovery status label text + colour
+function setDiscoverStatus(msg, colour) {
+  console.log('[setDiscoverStatus]', msg);
+  const el = document.getElementById('discover-status');
+  if (!el) return;
+  el.textContent  = msg;
+  el.style.color  = colour;
+}
+
+// NEW — wire any static discovery listeners that can't use inline onclick
+function initDiscovery() {
+  console.log('[initDiscovery] entry');
+  // Allow Shift+Enter in themeInput to fire discover
+  document.getElementById('themeInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter' && e.shiftKey) {
+      e.preventDefault();
+      runDiscovery();
+    }
+  });
+}
+
+/* ══════════════════════════════════════════════════════════════════
    BOOT
 ══════════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
@@ -1089,6 +1392,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initChart();
   initSliders();
   initTickerInputs();
+  initDiscovery();        // NEW
   recomputeAll();
   renderAll();
 });
