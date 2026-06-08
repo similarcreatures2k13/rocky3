@@ -992,37 +992,43 @@ document.getElementById('clear-ai').addEventListener('click', () => {
 });
 
 async function consultAuditor() {
-  const apiKey = localStorage.getItem('openrouter_api_key'); // Ensure this matches your KS constant
-  if (!apiKey) {
-    alert('Configure your OpenRouter API key first (⚙ CONFIG).');
+  const apiKey = localStorage.getItem('openrouter_api_key') || localStorage.getItem(KS);
+  if (!apiKey || !apiKey.startsWith('sk-or-')) {
+    alert('Invalid or missing API Key. Please configure it in ⚙ CONFIG.');
     document.getElementById('config-pane').classList.remove('hidden');
     return;
   }
 
-  const model = localStorage.getItem('openrouter_model') || 'google/gemini-2.5-flash'; // Ensure this matches your MS constant
+  const model = localStorage.getItem('openrouter_model') || localStorage.getItem(MS) || 'google/gemini-2.5-flash';
   const auditText = document.getElementById('audit-text').textContent;
 
-  // ── UPGRADED PROMPT: Clinical, Mathematical, Objective ──
+  // ── HEADLESS CALCULATOR PROMPT (No emotions, no moralizing) ──
   const systemPrompt = `
-You are the Rocky3 Quantitative Risk Engine. You are clinical, objective, and strictly mathematical. 
-DO NOT use emotional language, metaphors, judgmental tone, or phrases like "financial lunacy" or "train wreck". 
-Analyze the provided portfolio state and JSON audit manifest. Output a structured report with the following exact headers:
+You are a headless quantitative risk calculator. You are a script, not a person.
+STRICT RULES:
+1. NEVER use adjectives, adverbs, or emotional language.
+2. NEVER give financial advice, warn the user, or tell them what to do.
+3. NEVER use metaphors (no "dumpster fire", "zombie", "black hole", etc.).
+4. If the input data contains mismatched tickers (e.g., PTON with Innodata's financials), output "DATA_MISMATCH" in the Rationale and calculate based strictly on the financial numbers provided.
+5. Output ONLY the structured text report below. No intro, no outro, no markdown formatting outside the headers.
 
-### 1. RISK METRICS
-- **Value at Risk (VaR 95%)**: [Estimate based on provided volatility/convexity]
-- **Expected Shortfall (CVaR)**: [Estimate tail risk based on micro-cap status and gap risk]
+[START REPORT]
+> RISK_METRICS
+VaR_95: [Estimate 95% 1-day Value at Risk %]
+CVaR_95: [Estimate Expected Shortfall %]
 
-### 2. POSITION SIZING (KELLY CRITERION)
-- **Optimal f***: [Calculate fractional Kelly based on implied win rate and payoff ratio from momentum]
-- **Recommended Allocation**: [Actual % to deploy to avoid ruin, considering the $1k baseline and $2.5k options floor goal]
+> SIZING
+Kelly_f: [Optimal fractional Kelly]
+Alloc_Pct: [Recommended position size 0-100%]
 
-### 3. CONVEXITY & SHOCK ANALYSIS
-- **Dilution Drag**: [Quantify the exact % drag on EPS based on provided dilution flags]
-- **Liquidity Gap Risk**: [Probability of >20% overnight gap based on market cap and volume]
+> SHOCK_ANALYSIS
+Dilution_Drag: [Estimated annual EPS dilution %]
+Gap_Risk_Prob: [Probability 0.0-1.0 of >20% overnight gap]
 
-### 4. SYSTEM AUDIT VERDICT
-- **Status**: [APPROVE / REJECT / MODIFY]
-- **Mathematical Rationale**: [2-3 sentences strictly explaining the math behind the verdict, focusing on the path to the $2.5k options floor]
+> VERDICT
+Status: [APPROVE / REJECT / MODIFY]
+Math_Rationale: [Max 20 words. Strictly mathematical. No opinions.]
+[END REPORT]
 `;
 
   const wrap = document.getElementById('terminal-wrap');
@@ -1031,37 +1037,39 @@ Analyze the provided portfolio state and JSON audit manifest. Output a structure
   const spin = document.getElementById('consult-spin');
   const btn = document.getElementById('consult-btn');
 
-  // UI State: Loading
   btn.disabled = true;
   btn.innerHTML = '◌ ANALYZING...';
   spin.classList.remove('hidden');
   respEl.textContent = '';
   cursor.classList.remove('hidden');
   wrap.classList.remove('hidden');
+  wrap.scrollTop = wrap.scrollHeight;
 
-  const messages = [
-    { role: "system", content: systemPrompt },
-    { role: "user", content: `Analyze this live portfolio state and audit manifest:\n\n${auditText}` }
-  ];
+  const referer = window.location.protocol === 'file:' ? 'http://localhost' : window.location.href;
 
   try {
     const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
       method: "POST",
+      mode: "cors",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
-        "HTTP-Referer": window.location.href,
+        "HTTP-Referer": referer,
         "X-Title": "Rocky3 Audit Console",
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
         model: model,
-        messages: messages,
+        messages: [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: `Analyze this live portfolio state and audit manifest:\n\n${auditText}` }
+        ],
         stream: true
       })
     });
 
     if (!response.ok) {
-      throw new Error(`API Error: ${response.status} ${response.statusText}`);
+      const errData = await response.json().catch(() => ({}));
+      throw new Error(`HTTP ${response.status}: ${errData.error?.message || response.statusText}`);
     }
 
     const reader = response.body.getReader();
@@ -1079,28 +1087,23 @@ Analyze the provided portfolio state and JSON audit manifest. Output a structure
         if (line.startsWith("data: ")) {
           const data = line.slice(6).trim();
           if (data === "[DONE]") continue;
-
           try {
             const parsed = JSON.parse(data);
             const content = parsed.choices?.[0]?.delta?.content || "";
             if (content) {
               fullText += content;
               respEl.textContent = fullText;
-              // Auto-scroll to bottom of terminal
               wrap.scrollTop = wrap.scrollHeight;
             }
-          } catch (e) {
-            // Ignore JSON parse errors on incomplete chunks
-          }
+          } catch (e) { /* Ignore partial JSON chunks */ }
         }
       }
     }
-
   } catch (error) {
-    respEl.textContent = `❌ ERROR: ${error.message}\n\nCheck your API key and network connection.`;
+    console.error("OpenRouter Fetch Error:", error);
+    respEl.textContent = `❌ CONNECTION FAILED: ${error.message}\n\nTROUBLESHOOTING:\n1. Serve via local server (python -m http.server 8000)\n2. Disable ad-blockers for localhost\n3. Verify API key starts with "sk-or-"`;
     respEl.style.color = "#ff5555";
   } finally {
-    // UI State: Reset
     btn.disabled = false;
     btn.innerHTML = '▶ CONSULT SYSTEM AUDITOR';
     spin.classList.add('hidden');
