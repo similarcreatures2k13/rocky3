@@ -1,0 +1,11 @@
+Ticker,Layer,Description,Target Weight,End Value ($),Holding Return,Return Contrib.,End Port. Weight,Sharpe,Max DD
+NVDA,L1 Silicon/Compute,GPU / AI Accelerators,25%,"934,543",+273.8%,+68.5%,23.3%,0.72,-51.4%
+TSM,L1 Silicon/Compute,Leading-edge Foundry,10%,"390,039",+290.0%,+29.0%,9.7%,0.82,-56.1%
+AMD,L1 Silicon/Compute,CPU + GPU / MI-series AI,8%,"582,303",+627.9%,+50.2%,14.5%,0.92,-51.9%
+AVGO,L1 Silicon/Compute,Custom ASICs + Networking ICs,7%,"276,975",+295.7%,+20.7%,6.9%,0.78,-48.2%
+MSFT,L2 Cloud Hyperscaler,Azure + OpenAI partnership,15%,"537,225",+258.1%,+38.7%,13.4%,0.76,-49.8%
+GOOGL,L2 Cloud Hyperscaler,GCP + DeepMind + TPUs,12%,"488,270",+306.9%,+36.8%,12.2%,0.79,-53.4%
+AMZN,L2 Cloud Hyperscaler,AWS + Bedrock + Trainium,6%,"225,033",+275.1%,+16.5%,5.6%,0.69,-60.5%
+META,L3 AI Software/Apps,Llama models + AI Infra,8%,"263,260",+229.1%,+18.3%,6.6%,0.68,-64.3%
+ANET,L3 AI Software/Apps,AI Datacenter Networking,5%,"199,461",+298.9%,+14.9%,5.0%,0.75,-51.5%
+PLTR,L3 AI Software/Apps,AIP / Enterprise AI Analytics,4%,"117,664",+194.2%,+7.8%,2.9%,0.64,-62.4%
