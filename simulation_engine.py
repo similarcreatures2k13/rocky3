@@ -148,7 +148,15 @@ def run_dynamic_backtest(
     ma200      = port_prices.rolling(MA_LONG,  min_periods=MA_LONG).mean()
     ma60       = port_prices.rolling(MA_SHORT, min_periods=MA_SHORT).mean()
 
-    rebal_dates = set(port_prices.resample(REBAL_FREQ).last().index)
+    # Build rebalance dates as the actual LAST TRADING DAY of each calendar quarter.
+    # resample("QE").last().index returns period labels (e.g. Dec 31) which can fall
+    # on weekends/holidays and never appear in the price index, silently skipping
+    # those rebalances.  groupby(Grouper) avoids this by using the real last row.
+    rebal_dates: set = set()
+    for _, grp in port_prices.groupby(pd.Grouper(freq="QE")):
+        if len(grp) > 0:
+            rebal_dates.add(grp.index[-1])
+
     daily_rfr   = (1 + RISK_FREE_RATE) ** (1 / TRADING_DAYS) - 1
 
     shares: dict[str, float] = {t: 0.0        for t in tickers}
@@ -431,27 +439,50 @@ def compute_metrics(daily: pd.DataFrame) -> pd.DataFrame:
     return pd.DataFrame(rows).set_index("Series")
 
 
-def compute_holdings(daily: pd.DataFrame) -> pd.DataFrame:
-    eq_end = daily["equity_nav"].iloc[-1]
-    rows   = []
+def compute_holdings(daily: pd.DataFrame, alloc_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Per-ticker rotation attribution for the dynamic layering strategy.
+
+    Because the portfolio starts and ends in cash (200-day MA filter), a
+    start/end-value table would show all zeros.  Instead we report:
+      - How many times each ticker was allocated at each rank
+      - Number of trailing-stop liquidations
+      - Total days held, peak position value, and P&L contribution
+    """
+    rebal = alloc_df[alloc_df["Event"] == "REBALANCE"]
+    stops = alloc_df[alloc_df["Event"].str.startswith("TRAILING", na=False)]
+
+    rows = []
     for t, cfg in PORTFOLIO.items():
         col = f"{t}_value"
         if col not in daily.columns:
             continue
-        h   = daily[col].dropna()
-        ret = h.pct_change().dropna()
+
+        v    = daily[col]
+        pv   = v.shift(1)
+        # P&L on days when the position was continuously open (both days non-zero)
+        held_mask   = (v > 0) & (pv > 0)
+        holding_pnl = float((v - pv)[held_mask].sum())
+
+        # Count how many rebalances selected this ticker at each rank
+        r1 = int((rebal.get("Rank1 (50%)", pd.Series()) == t).sum())
+        r2 = int((rebal.get("Rank2 (30%)", pd.Series()) == t).sum())
+        r3 = int((rebal.get("Rank3 (20%)", pd.Series()) == t).sum())
+        n_stops = int(stops["Event"].str.contains(rf"\b{t}\b", na=False).sum())
+
         rows.append({
-            "Ticker":       t,
-            "Layer":        cfg["layer"],
-            "Description":  cfg["desc"],
-            "Start ($)":    f"{h.iloc[0]:,.2f}",
-            "End ($)":      f"{h.iloc[-1]:,.2f}",
-            "Hold. Return": f"{h.iloc[-1] / h.iloc[0] - 1:+.1%}",
-            "Contrib.":     f"{(h.iloc[-1] - h.iloc[0]) / INITIAL_CAPITAL:+.1%}",
-            "Port. Wt":     f"{h.iloc[-1] / eq_end:.1%}",
-            "Sharpe":       f"{_sharpe(ret):.2f}",
-            "Max DD":       f"{_max_dd(h):.1%}",
+            "Ticker":         t,
+            "Layer":          cfg["layer"],
+            "Description":    cfg["desc"],
+            "R1(50%) ×":     r1,
+            "R2(30%) ×":     r2,
+            "R3(20%) ×":     r3,
+            "Stops":          n_stops,
+            "Days Held":      int(held_mask.sum()),
+            "Peak Pos ($)":   f"{v.max():,.0f}",
+            "P&L Contrib.":   f"{holding_pnl / INITIAL_CAPITAL:+.1%}",
         })
+
     return pd.DataFrame(rows).set_index("Ticker")
 
 
@@ -504,7 +535,7 @@ def print_report(
         for _, ev in stop_events.iterrows():
             print(f"  {ev['Date']}  {ev['Eligible (>MA200)']}")
 
-    print("\n▸ END-STATE HOLDING ATTRIBUTION  (equity path)")
+    print("\n▸ PER-TICKER ROTATION ATTRIBUTION  (dynamic equity path)")
     print(SEP2)
     print(holdings.to_string())
 
@@ -617,7 +648,7 @@ def main() -> None:
     daily    = eq_daily.join(opts_daily[opt_cols], how="left")
 
     metrics  = compute_metrics(daily)
-    holdings = compute_holdings(daily)
+    holdings = compute_holdings(daily, alloc_df)
 
     daily.reset_index().rename(columns={"date": "Date"}).to_csv(
         "backtest_daily.csv", index=False, float_format="%.4f"
