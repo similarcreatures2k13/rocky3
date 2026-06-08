@@ -314,6 +314,8 @@
           🎯 DISCOVER
           <span id="discover-spin" class="hidden blink" style="margin-left:3px">◌</span>
         </button>
+        <button id="refine-btn" class="btn btn-b btn-sm"
+                onclick="refineDiscovery()" style="display:none">⟳ REFINE</button>
         <button id="clear-queue-btn" class="btn btn-red btn-sm"
                 onclick="clearQueue()" style="display:none">✕ CLEAR QUEUE</button>
         <span id="discover-status" class="text-xs" style="color:var(--g)"></span>
@@ -322,9 +324,14 @@
 
     <!-- Queue list (hidden until first discovery) -->
     <div id="queue-wrap" class="mt-4" style="display:none">
-      <div class="flex items-center justify-between mb-2">
+      <div class="flex items-center justify-between mb-2 flex-wrap gap-2">
         <span class="lbl">Discovery Queue</span>
-        <span class="text-xs" id="queue-count" style="color:rgba(0,255,65,0.4)">0 tickers</span>
+        <div class="flex gap-2 items-center">
+          <!-- TIER 3: batch-validate all pending entries -->
+          <button id="val-all-btn" class="btn btn-g btn-sm"
+                  onclick="validateAllPending()" style="display:none">⚡ VALIDATE ALL</button>
+          <span class="text-xs" id="queue-count" style="color:rgba(0,255,65,0.4)">0 tickers</span>
+        </div>
       </div>
       <div id="queue-list" class="grid gap-2"></div>
     </div>
@@ -601,7 +608,11 @@ const S = {
   },
   // NEW — discovery queue; each entry: { ticker, company, rationale, status, ts }
   // status: "pending" | "validated" | "rejected"
-  discoveryQueue: []
+  discoveryQueue: [],
+  // TIER 3 — N-asset array; each entry: { ticker, rawConvexity, survivalScore, weight, source }
+  // source: "manual" | "discovered"
+  // Populated at boot from assetA/assetB, extended by promoteToPortfolio()
+  assets: []
 };
 
 /* ══════════════════════════════════════════════════════════════════
@@ -697,6 +708,7 @@ function initChart() {
 function renderAll() {
   renderAsset('assetA', 'a');
   renderAsset('assetB', 'b');
+  syncManualAssets(); // TIER 3: keep S.assets[0/1] in sync with slider state
   renderChart();
   renderManifest();
 }
@@ -741,11 +753,25 @@ function renderAsset(key, tag) {
   document.getElementById(`leg-${tag}`).textContent = a.ticker;
 }
 
+// TIER 3: N-bar chart — data driven entirely by S.assets array
 function renderChart() {
   if (!chart) return;
-  chart.data.labels              = [S.assetA.ticker, S.assetB.ticker];
-  chart.data.datasets[0].data   = [S.assetA.survivalScore, S.assetB.survivalScore];
-  chart.data.datasets[1].data   = [S.assetA.rawConvexity,  S.assetB.rawConvexity];
+
+  // Colour palettes cycling over N assets
+  const BG  = ['rgba(0,255,65,0.14)','rgba(0,180,255,0.14)','rgba(255,183,0,0.14)',
+                'rgba(180,0,255,0.14)','rgba(255,100,0,0.14)'];
+  const BDR = ['#00ff41','#00b4ff','#ffb700','#b400ff','#ff6400'];
+
+  chart.data.labels = S.assets.map(a => a.ticker);
+
+  chart.data.datasets[0].data            = S.assets.map(a => a.survivalScore);
+  chart.data.datasets[0].backgroundColor = S.assets.map((_, i) => BG[i  % BG.length]);
+  chart.data.datasets[0].borderColor     = S.assets.map((_, i) => BDR[i % BDR.length]);
+
+  chart.data.datasets[1].data            = S.assets.map(a => a.rawConvexity);
+  chart.data.datasets[1].backgroundColor = S.assets.map(() => 'rgba(255,183,0,0.07)');
+  chart.data.datasets[1].borderColor     = S.assets.map(() => 'rgba(255,183,0,0.45)');
+
   chart.update('active');
 }
 
@@ -1340,6 +1366,13 @@ function renderDiscoveryQueue() {
 
   const hasKey = !!(localStorage.getItem('openrouter_key') || localStorage.getItem(KS));
 
+  // TIER 3: show VALIDATE ALL only when pending entries exist; REFINE whenever queue has items
+  const pendingCount = S.discoveryQueue.filter(e => e.status === 'pending').length;
+  const valAllBtn = document.getElementById('val-all-btn');
+  const refineBtn = document.getElementById('refine-btn');
+  if (valAllBtn) valAllBtn.style.display = pendingCount > 0 ? '' : 'none';
+  if (refineBtn) refineBtn.style.display = S.discoveryQueue.length > 0 ? '' : 'none';
+
   list.innerHTML = S.discoveryQueue.map((entry, idx) => {
     const c = C[entry.status] || C.pending;
     return `
@@ -1365,8 +1398,9 @@ function renderDiscoveryQueue() {
           </div>
           <div style="display:flex;gap:6px;align-items:center;flex-shrink:0">
             ${entry.status === 'pending' && hasKey
+              // TIER 3: per-item VALIDATE calls Yahoo Finance validator
               ? `<button class="btn btn-g btn-sm" id="val-btn-${idx}"
-                         onclick="validateTicker('${entry.ticker}',${idx})">▶ VALIDATE</button>`
+                         onclick="validateQueueEntry('${entry.ticker}',${idx})">▶ VALIDATE</button>`
               : ''}
             ${entry.status === 'validated'
               ? `<span style="font-size:0.62rem;font-weight:700;color:var(--g);letter-spacing:0.1em">✓ VALIDATED</span>`
@@ -1474,6 +1508,261 @@ function initDiscovery() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   TIER 3 — YAHOO FINANCE VALIDATION + PORTFOLIO INTEGRATION
+══════════════════════════════════════════════════════════════════ */
+
+// ─── fetchYahooData ───────────────────────────────────────────────
+// Attempt 1: no-cors (opaque response → can't read body → triggers fallback).
+// Attempt 2: allorigins CORS proxy → returns readable JSON.
+async function fetchYahooData(ticker) {
+  console.log('[fetchYahooData] entry', ticker);
+
+  const yahooUrl = `https://query1.finance.yahoo.com/v8/finance/chart/${ticker}?interval=1d&range=1y`;
+
+  // Attempt 1 — no-cors
+  try {
+    const res = await fetch(yahooUrl, { mode: 'no-cors' });
+    // Opaque responses (type='opaque', status=0) can't be read; fall through to proxy
+    if (res.type !== 'opaque' && res.ok) {
+      console.log('[fetchYahooData] direct fetch succeeded');
+      return res.json();
+    }
+    console.log('[fetchYahooData] opaque or non-OK, switching to allorigins proxy');
+  } catch (_) {
+    console.log('[fetchYahooData] direct fetch threw, switching to allorigins proxy');
+  }
+
+  // Attempt 2 — allorigins CORS proxy
+  const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(yahooUrl)}`;
+  const res2 = await fetch(proxyUrl);
+
+  if (res2.status === 404) {
+    const e = new Error('Ticker not found'); e.code = 'NOT_FOUND'; throw e;
+  }
+  if (!res2.ok) {
+    const e = new Error(`Proxy HTTP ${res2.status}`); e.code = 'PROXY_ERR'; throw e;
+  }
+  return res2.json();
+}
+
+// ─── parseYahooResponse ───────────────────────────────────────────
+// Extract price metrics and calculate 200-day MA.
+// Returns { valid, reason } on rejection or { valid:true, ...metrics } on pass.
+function parseYahooResponse(data, ticker) {
+  console.log('[parseYahooResponse] entry', ticker);
+
+  const result = data?.chart?.result?.[0];
+  if (!result) {
+    return { valid: false, reason: 'Ticker not found' };
+  }
+
+  const meta    = result.meta || {};
+  const quotes  = result.indicators?.quote?.[0] || {};
+  const closes  = (quotes.close  || []).filter(v => v != null && v > 0);
+  const volumes = (quotes.volume || []).filter(v => v != null && v > 0);
+
+  const price  = meta.regularMarketPrice || meta.previousClose || 0;
+  const volume = meta.regularMarketVolume
+              || (volumes.length ? volumes[volumes.length - 1] : 0);
+
+  // Hard filter — price
+  if (price > 50) {
+    return { valid: false, reason: `Price $${price.toFixed(2)} exceeds $50 limit` };
+  }
+  // Hard filter — volume
+  if (volume > 0 && volume < 100_000) {
+    return { valid: false, reason: `Volume ${volume.toLocaleString()} too low` };
+  }
+
+  // 200-day MA from up to last 200 valid closes
+  const last200 = closes.slice(-200);
+  const ma200   = last200.length
+    ? parseFloat((last200.reduce((s, v) => s + v, 0) / last200.length).toFixed(4))
+    : null;
+
+  // % distance from 200-day MA
+  const distFromMa200 = ma200
+    ? parseFloat((((price - ma200) / ma200) * 100).toFixed(2))
+    : null;
+
+  return {
+    valid:            true,
+    price,
+    previousClose:    meta.previousClose       ?? null,
+    fiftyTwoWeekHigh: meta.fiftyTwoWeekHigh    ?? null,
+    fiftyTwoWeekLow:  meta.fiftyTwoWeekLow     ?? null,
+    volume,
+    ma200,
+    distFromMa200,
+    dataPoints:       closes.length,
+  };
+}
+
+// ─── validateQueueEntry ───────────────────────────────────────────
+// TIER 3 per-item validator: Yahoo Finance → hard filters → promote.
+async function validateQueueEntry(ticker, idx) {
+  console.log('[validateQueueEntry] entry', ticker, idx);
+
+  const btn = document.getElementById(`val-btn-${idx}`);
+  if (btn) { btn.textContent = '⟳ CHECKING…'; btn.disabled = true; }
+
+  try {
+    const raw     = await fetchYahooData(ticker);
+    const metrics = parseYahooResponse(raw, ticker);
+
+    if (!metrics.valid) {
+      // Hard-rejection: update queue status and rationale
+      S.discoveryQueue[idx].status    = 'rejected';
+      S.discoveryQueue[idx].rationale = metrics.reason;
+      console.log('[validateQueueEntry] rejected', ticker, metrics.reason);
+    } else {
+      // Validated: annotate queue entry, promote to portfolio
+      S.discoveryQueue[idx].status    = 'validated';
+      S.discoveryQueue[idx].rationale = [
+        `$${metrics.price.toFixed(2)}`,
+        metrics.ma200        ? `MA200 $${metrics.ma200}`                            : '',
+        metrics.distFromMa200 != null
+          ? `${metrics.distFromMa200 >= 0 ? '+' : ''}${metrics.distFromMa200}% vs MA`
+          : '',
+        metrics.fiftyTwoWeekLow
+          ? `52w $${metrics.fiftyTwoWeekLow.toFixed(2)}–$${metrics.fiftyTwoWeekHigh.toFixed(2)}`
+          : '',
+        metrics.dataPoints   ? `${metrics.dataPoints}d data`                        : '',
+      ].filter(Boolean).join(' · ');
+
+      console.log('[validateQueueEntry] validated', ticker, metrics);
+      promoteToPortfolio(S.discoveryQueue[idx], metrics);
+    }
+
+  } catch (err) {
+    console.error('[validateQueueEntry] error', err.code, err.message);
+    S.discoveryQueue[idx].status    = 'rejected';
+    S.discoveryQueue[idx].rationale =
+      err.code === 'NOT_FOUND' ? 'Ticker not found'
+                               : `Fetch error: ${err.message}`;
+  }
+
+  renderDiscoveryQueue();
+}
+
+// ─── validateAllPending ───────────────────────────────────────────
+// Batch-validate every 'pending' entry sequentially (300ms gap).
+async function validateAllPending() {
+  console.log('[validateAllPending] entry');
+
+  const btn = document.getElementById('val-all-btn');
+  if (btn) { btn.disabled = true; btn.textContent = '⟳ RUNNING…'; }
+
+  const pending = S.discoveryQueue
+    .map((e, i) => ({ e, i }))
+    .filter(({ e }) => e.status === 'pending');
+
+  for (const { e, i } of pending) {
+    await validateQueueEntry(e.ticker, i);
+    await new Promise(r => setTimeout(r, 300)); // gentle rate-gap
+  }
+
+  if (btn) { btn.disabled = false; btn.textContent = '⚡ VALIDATE ALL'; }
+}
+
+// ─── promoteToPortfolio ───────────────────────────────────────────
+// Add a validated discovered ticker to S.assets and recalc weights.
+function promoteToPortfolio(queueEntry, metrics) {
+  console.log('[promoteToPortfolio] entry', queueEntry.ticker);
+
+  // Build a minimal asset object with formula-ready defaults
+  const a = {
+    ticker:        queueEntry.ticker,
+    source:        'discovered',
+    price:         metrics.price,
+    ma200:         metrics.ma200,
+    distFromMa200: metrics.distFromMa200,
+    fiftyTwoWeekHigh: metrics.fiftyTwoWeekHigh,
+    fiftyTwoWeekLow:  metrics.fiftyTwoWeekLow,
+    // Convexity formula inputs — seeded from price range heuristics,
+    // user can tune via Shock Matrix after promotion
+    growth:        35,
+    margin:        25,
+    ev:            Math.max(metrics.price * 5, 10),   // rough EV proxy
+    cash:          0.5,
+    concentration: 25,
+    dilution:      false,
+    rawConvexity:  0,
+    survivalScore: 0,
+    weight:        0,
+  };
+
+  // Compute convexity with default inputs
+  const denom = a.ev / Math.max(a.cash, 0.001);
+  a.rawConvexity  = denom > 0 ? (a.growth * a.margin) / denom : 0;
+  a.survivalScore = a.rawConvexity; // no shock penalties on discovery defaults
+
+  // Upsert: replace if ticker already exists, else append
+  const existingIdx = S.assets.findIndex(x => x.ticker === a.ticker);
+  if (existingIdx >= 0) {
+    S.assets[existingIdx] = a;
+  } else {
+    S.assets.push(a);
+  }
+
+  recalcWeights();
+  renderChart(); // live N-bar update
+}
+
+// ─── syncManualAssets ─────────────────────────────────────────────
+// Keep S.assets[0/1] mirroring the slider-driven assetA/assetB state.
+// Called from renderAll() so the chart always reflects slider edits.
+function syncManualAssets() {
+  console.log('[syncManualAssets] entry');
+  ['assetA', 'assetB'].forEach((key, i) => {
+    const a = S[key];
+    S.assets[i] = {
+      ticker:        a.ticker,
+      rawConvexity:  a.rawConvexity,
+      survivalScore: a.survivalScore,
+      weight:        0,
+      source:        'manual',
+    };
+  });
+  recalcWeights();
+}
+
+// ─── recalcWeights ────────────────────────────────────────────────
+// weight = (survivalScore / totalScores) * 100, per spec.
+function recalcWeights() {
+  console.log('[recalcWeights] entry');
+  const total = S.assets.reduce((s, a) => s + Math.max(a.survivalScore, 1e-9), 0);
+  S.assets.forEach(a => {
+    a.weight = total > 0 ? parseFloat(((a.survivalScore / total) * 100).toFixed(2)) : 0;
+  });
+}
+
+// ─── initAssets ───────────────────────────────────────────────────
+// Seed S.assets at boot from assetA/assetB (already computed by recomputeAll).
+function initAssets() {
+  console.log('[initAssets] entry');
+  syncManualAssets();
+}
+
+// ─── refineDiscovery ─────────────────────────────────────────────
+// Appends exclusion + volatility directive to current theme, re-runs discovery.
+function refineDiscovery() {
+  console.log('[refineDiscovery] entry');
+
+  const themeEl       = document.getElementById('themeInput');
+  const currentTheme  = (themeEl?.value || '').trim();
+  const activeTickers = S.discoveryQueue.map(e => e.ticker).join(', ');
+
+  const refined = activeTickers
+    ? `${currentTheme}. Exclude: ${activeTickers}. Focus on higher volatility alternatives.`
+    : currentTheme;
+
+  if (themeEl) themeEl.value = refined;
+  console.log('[refineDiscovery] refined theme:', refined);
+  handleDiscover();
+}
+
+/* ══════════════════════════════════════════════════════════════════
    BOOT
 ══════════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
@@ -1481,8 +1770,9 @@ document.addEventListener('DOMContentLoaded', () => {
   initChart();
   initSliders();
   initTickerInputs();
-  initDiscovery();        // NEW
+  initDiscovery();
   recomputeAll();
+  initAssets();   // TIER 3: seed S.assets from assetA/assetB before first renderAll
   renderAll();
 });
 </script>
