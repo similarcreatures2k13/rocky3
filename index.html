@@ -340,170 +340,8 @@
 
 <!-- ═══════════════════════════════════ SHOCK MATRIX -->
 <section class="px-4 mt-5">
-  <div class="lbl mb-3">⚡ Shock Matrix Control — edit tickers · move sliders · toggle dilution</div>
-  <div class="grid gap-4 two-col" style="grid-template-columns:1fr">
-
-    <!-- ── ASSET A ─────────────────────────────── -->
-    <div class="card card-a" id="card-a">
-      <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
-        <div class="flex items-center gap-2 flex-wrap">
-          <input type="text" class="ticker-name-input"
-                 id="ticker-a" value="INOD" maxlength="10"
-                 autocomplete="off" spellcheck="false"
-                 title="Edit ticker symbol" />
-          <span class="text-xs" id="name-a" style="color:#2a5a2a">Innodata Inc</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <button class="toggle" id="dil-a" onclick="toggleDilution('assetA')">⊘ DILUTION</button>
-          <button class="btn btn-g btn-sm" id="pop-a" onclick="aiPopulate('assetA')">⚡ AI POP</button>
-        </div>
-      </div>
-
-      <div class="grid gap-3">
-        <div>
-          <div class="flex justify-between items-center mb-1">
-            <span class="lbl">Share Price</span>
-            <span class="text-xs font-bold" id="v-a-price" style="color:var(--g)">$40.00</span>
-          </div>
-          <input type="range" class="sl-a" data-asset="assetA" data-field="price"
-                 min="0.10" max="500" step="0.10" value="40" />
-        </div>
-        <div>
-          <div class="flex justify-between items-center mb-1">
-            <span class="lbl">Client Concentration</span>
-            <span class="text-xs font-bold" id="v-a-concentration">32%</span>
-          </div>
-          <input type="range" class="sl-warn" data-asset="assetA" data-field="concentration"
-                 min="0" max="100" step="1" value="32" />
-          <div class="lbl mt-1" id="warn-a-conc" style="color:var(--amber)">⚠ SHOCK PENALTY ACTIVE</div>
-        </div>
-        <div>
-          <div class="flex justify-between items-center mb-1">
-            <span class="lbl">Fwd Revenue Growth</span>
-            <span class="text-xs font-bold" id="v-a-growth" style="color:var(--g)">40%</span>
-          </div>
-          <input type="range" class="sl-a" data-asset="assetA" data-field="growth"
-                 min="0" max="500" step="1" value="40" />
-        </div>
-        <div>
-          <div class="flex justify-between items-center mb-1">
-            <span class="lbl">Gross Margin</span>
-            <span class="text-xs font-bold" id="v-a-margin" style="color:var(--g)">22%</span>
-          </div>
-          <input type="range" class="sl-a" data-asset="assetA" data-field="margin"
-                 min="0" max="90" step="1" value="22" />
-        </div>
-        <div>
-          <div class="flex justify-between items-center mb-1">
-            <span class="lbl">Enterprise Value ($M)</span>
-            <span class="text-xs font-bold" id="v-a-ev" style="color:var(--g)">$600M</span>
-          </div>
-          <input type="range" class="sl-a" data-asset="assetA" data-field="ev"
-                 min="1" max="10000" step="5" value="600" />
-        </div>
-        <div>
-          <div class="flex justify-between items-center mb-1">
-            <span class="lbl">Cash Ratio</span>
-            <span class="text-xs font-bold" id="v-a-cash" style="color:var(--g)">0.45</span>
-          </div>
-          <input type="range" class="sl-a" data-asset="assetA" data-field="cash"
-                 min="0.01" max="10" step="0.01" value="0.45" />
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-2 mt-3">
-        <div class="score-box" style="border-color:rgba(0,255,65,0.3)">
-          <div class="lbl">Raw Convexity</div>
-          <div class="text-sm font-bold mt-1" id="raw-a" style="color:#4a9a4a">—</div>
-        </div>
-        <div class="score-box" style="border-color:rgba(0,255,65,0.6)">
-          <div class="lbl">Survival Score</div>
-          <div class="text-sm font-bold glow-g mt-1" id="sur-a" style="color:var(--g)">—</div>
-        </div>
-      </div>
-    </div>
-
-    <!-- ── ASSET B ─────────────────────────────── -->
-    <div class="card card-b" id="card-b">
-      <div class="flex items-center justify-between mb-3 gap-2 flex-wrap">
-        <div class="flex items-center gap-2 flex-wrap">
-          <input type="text" class="ticker-name-input asset-b"
-                 id="ticker-b" value="DUOT" maxlength="10"
-                 autocomplete="off" spellcheck="false"
-                 title="Edit ticker symbol" />
-          <span class="text-xs" id="name-b" style="color:#1a3a5a">Duos Technologies</span>
-        </div>
-        <div class="flex items-center gap-2">
-          <button class="toggle on" id="dil-b" onclick="toggleDilution('assetB')">⚠ DILUTION</button>
-          <button class="btn btn-b btn-sm" id="pop-b" onclick="aiPopulate('assetB')">⚡ AI POP</button>
-        </div>
-      </div>
-
-      <div class="grid gap-3">
-        <div>
-          <div class="flex justify-between items-center mb-1">
-            <span class="lbl">Share Price</span>
-            <span class="text-xs font-bold" id="v-b-price" style="color:var(--blue)">$9.80</span>
-          </div>
-          <input type="range" class="sl-b" data-asset="assetB" data-field="price"
-                 min="0.10" max="500" step="0.10" value="9.8" />
-        </div>
-        <div>
-          <div class="flex justify-between items-center mb-1">
-            <span class="lbl">Client Concentration</span>
-            <span class="text-xs font-bold" id="v-b-concentration" style="color:var(--red)">48%</span>
-          </div>
-          <input type="range" class="sl-warn" data-asset="assetB" data-field="concentration"
-                 min="0" max="100" step="1" value="48" />
-          <div class="lbl mt-1" id="warn-b-conc" style="color:var(--red)">⚠ CRITICAL: HIGH CONCENTRATION</div>
-        </div>
-        <div>
-          <div class="flex justify-between items-center mb-1">
-            <span class="lbl">Fwd Revenue Growth</span>
-            <span class="text-xs font-bold" id="v-b-growth" style="color:var(--blue)">55%</span>
-          </div>
-          <input type="range" class="sl-b" data-asset="assetB" data-field="growth"
-                 min="0" max="500" step="1" value="55" />
-        </div>
-        <div>
-          <div class="flex justify-between items-center mb-1">
-            <span class="lbl">Gross Margin</span>
-            <span class="text-xs font-bold" id="v-b-margin" style="color:var(--blue)">35%</span>
-          </div>
-          <input type="range" class="sl-b" data-asset="assetB" data-field="margin"
-                 min="0" max="90" step="1" value="35" />
-        </div>
-        <div>
-          <div class="flex justify-between items-center mb-1">
-            <span class="lbl">Enterprise Value ($M)</span>
-            <span class="text-xs font-bold" id="v-b-ev" style="color:var(--blue)">$45M</span>
-          </div>
-          <input type="range" class="sl-b" data-asset="assetB" data-field="ev"
-                 min="1" max="10000" step="5" value="45" />
-        </div>
-        <div>
-          <div class="flex justify-between items-center mb-1">
-            <span class="lbl">Cash Ratio</span>
-            <span class="text-xs font-bold" id="v-b-cash" style="color:var(--blue)">0.80</span>
-          </div>
-          <input type="range" class="sl-b" data-asset="assetB" data-field="cash"
-                 min="0.01" max="10" step="0.01" value="0.80" />
-        </div>
-      </div>
-
-      <div class="grid grid-cols-2 gap-2 mt-3">
-        <div class="score-box" style="border-color:rgba(0,180,255,0.3)">
-          <div class="lbl">Raw Convexity</div>
-          <div class="text-sm font-bold mt-1" id="raw-b" style="color:#3a7a9a">—</div>
-        </div>
-        <div class="score-box" style="border-color:rgba(0,180,255,0.6)">
-          <div class="lbl">Survival Score</div>
-          <div class="text-sm font-bold glow-b mt-1" id="sur-b" style="color:var(--blue)">—</div>
-        </div>
-      </div>
-    </div>
-
-  </div><!-- /two-col -->
+  <div class="lbl mb-3">⚡ Shock Matrix — AlphaEngine Quality Gate</div>
+  <div id="dynamic-ticker-container" class="grid grid-cols-1 md:grid-cols-2 gap-4"></div>
 </section>
 
 <!-- ═══════════════════════════════════ ANALYTICS CANVAS -->
@@ -598,6 +436,8 @@ const S = {
   discoveryQueue: [],
   assets: []
 };
+
+const TICKER_UNIVERSE = ['ANET', 'AVGO', 'INOD', 'DUOT'];
 
 /* ══════════════════════════════════════════════════════════════════
    FORMULA ENGINE
@@ -1545,6 +1385,64 @@ function refineDiscovery() {
 }
 
 /* ══════════════════════════════════════════════════════════════════
+   DYNAMIC TICKER CARDS  (AlphaEngine Quality Gate)
+══════════════════════════════════════════════════════════════════ */
+function renderDynamicCards() {
+  const container = document.getElementById('dynamic-ticker-container');
+  if (!container) return;
+
+  const STATUS_COLORS = {
+    ELITE:              { hex: 'var(--g)',    border: 'rgba(0,255,65,0.45)'  },
+    REJECTED:           { hex: 'var(--red)',  border: 'rgba(255,51,51,0.45)' },
+    INSUFFICIENT_DATA:  { hex: 'var(--amber)','border': 'rgba(255,183,0,0.35)' },
+    PENDING:            { hex: 'var(--amber)', border: 'rgba(255,183,0,0.20)' },
+  };
+
+  container.innerHTML = TICKER_UNIVERSE.map(ticker => {
+    const c = STATUS_COLORS.PENDING;
+    return `
+      <div class="card fade-up" data-ticker="${ticker}"
+           style="border-color:${c.border}">
+        <div style="display:flex;align-items:center;justify-content:space-between;
+                    margin-bottom:13px;flex-wrap:wrap;gap:6px">
+          <span class="glow-g"
+                style="color:var(--g);font-size:1.05rem;font-weight:700;
+                       letter-spacing:0.07em">${ticker}</span>
+          <span style="font-size:0.58rem;font-weight:700;letter-spacing:0.14em;
+                       color:${c.hex};padding:3px 8px;
+                       border:1px solid ${c.border};border-radius:2px">
+            — PENDING —
+          </span>
+        </div>
+
+        <div style="display:grid;gap:8px">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="lbl">Gross Margin</span>
+            <span style="color:var(--g);font-size:0.72rem;font-weight:700">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="lbl">Revenue Growth</span>
+            <span style="color:var(--g);font-size:0.72rem;font-weight:700">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="lbl">Net Debt / EBITDA</span>
+            <span style="color:var(--g);font-size:0.72rem;font-weight:700">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <span class="lbl">Stop-Loss Price</span>
+            <span style="color:var(--red);font-size:0.72rem;font-weight:700">—</span>
+          </div>
+        </div>
+
+        <div class="score-box" style="margin-top:13px;border-color:rgba(0,255,65,0.25)">
+          <div class="lbl">AlphaEngine Score</div>
+          <div style="color:var(--g);font-size:0.875rem;font-weight:700;margin-top:4px">—</div>
+        </div>
+      </div>`;
+  }).join('');
+}
+
+/* ══════════════════════════════════════════════════════════════════
    BOOT
 ══════════════════════════════════════════════════════════════════ */
 document.addEventListener('DOMContentLoaded', () => {
@@ -1556,6 +1454,7 @@ document.addEventListener('DOMContentLoaded', () => {
   recomputeAll();
   initAssets();
   renderAll();
+  renderDynamicCards();
 });
 </script>
 
